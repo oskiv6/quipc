@@ -59,6 +59,9 @@ Use `quipc -h` to get more information, some options may not work yet.
 
 ### Standard Library Configuration
 
+Currently Quip runtime library path is hardcoded as /usr/local/lib/quip/libq.o
+please, compile the libq.c using your system's C compiler and install it into /usr/local/lib/quip/libq.o
+
 The compiler expects the stdlib to be located in /usr/local/lib/quip/. Alternatively, you can specify a custom path directly in your code:
 
 ```quip 
