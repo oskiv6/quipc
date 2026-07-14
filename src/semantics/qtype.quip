@@ -1,0 +1,33 @@
+@pure @const {
+make qast = @import "../util/qast.quip"
+}
+
+
+@pub
+make enum TypeKind {
+    Native,
+    Custom,
+    Slice,          // T[]
+    Pointer,        // ptr<T>, owned<T>, ref<T>
+    Fallible,       // !T
+    Variant,        // variant<T, U>
+}
+
+@pub
+make type QType {
+
+    make kind: TypeKind
+
+    make native: Type,
+    make custom: ptr<qast::QAST_Type>
+
+    make inner: ptr<QType>
+
+    @pub @this
+    make is_int () -> bool {
+        if this.kind == TypeKind.Native {
+            return this.native == int
+        }
+    }
+
+}

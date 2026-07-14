@@ -1,0 +1,651 @@
+@pure @const {
+make std = @import "stdlib.quip"
+make util = @import "../util/pkg.quip"
+}
+
+@external make printf(fmt: ptr<char>, val: TokenKind) -> int
+
+@pub
+make enum TokenKind {
+    KeyMake,
+    KeyType,
+    KeyEnum,
+
+    KeyIf,
+    KeyElif,
+    KeyElse,
+    KeyFor,
+    KeyWhile,
+    KeyMatch,
+
+    KeyCatch,
+    KeyReturn,
+
+    KeyError,
+
+    KeyTrue,
+    KeyFalse,
+    KeyNone,
+
+    Identifier,
+    LiteralNum,
+    LiteralString,
+    LiteralChar,
+
+    Plus,               // +
+    Minus,              // -
+    Equal,              // =
+    Slash,              // /
+    Less,               // <
+    Greater,            // >
+    Not,                // !
+    Question,           // ?
+    Asterisk,           // *
+    Percent,            // %
+    Dot,                // .
+    Comma,              // ,
+    Semicolon,          // ;
+    Colon,              // :
+    DoubleColon,        // ::
+    Arrow,              // ->
+    FatArrow,           // =>
+    At,                 // @
+
+    PlusEqual,          // +=
+    MinusEqual,         // -=
+    EqualEqual,         // ==
+    LessEqual,          // <=
+    GreaterEqual,       // >=
+    NotEqual,           // !=
+    AsteriskEqual,      // *=
+    SlashEqual,         // /=
+
+    LParen,             // (
+    RParen,             // )
+    LBrace,             // {
+    RBrace,             // }
+    LBracket,           // [
+    RBracket,           // ]
+
+    Ampersand,          // &
+    DoubleAmpersand,    // &&
+    AmpersandEqual,     // &=
+    Pipe,               // |
+    DoublePipe,         // ||
+    PipeEqual,          // |=
+    Caret,              // ^
+    CaretEqual,         // ^=
+    ShiftLeft,          // <<
+    ShiftLeftEqual,     // <<=
+    ShiftRight,         // >>
+    ShiftRightEqual,    // >>=
+    Tilde,              // ~
+
+    EOF,                // end of file
+    None,
+}
+
+@pub
+make type Token {
+
+    make kind: TokenKind = TokenKind.None
+    make lexeme: str
+    make span: util::Span
+
+    @pub
+    make init () -> Token {
+        make token = Token {}
+        return token
+    }
+
+    @pub
+    make create (lexeme: str, span: util::Span, kind: TokenKind) -> Token {
+        make token = Token {
+            kind = kind,
+            lexeme = lexeme,
+            span = span,
+        }
+
+        return token
+    }
+
+    @pub @this
+    make show () -> void {
+        if this.kind == TokenKind.None {
+            std::io::println("unable to display token")
+            return
+        }
+
+        std::io::println("=== Token ===")
+        std::io::println(this.lexeme)
+        print_kind(this.kind)
+
+    }
+
+    @pub @this
+    make is_assign_op () -> bool {
+        make k = this.kind
+
+        return (k == TokenKind.Equal || k == TokenKind.PlusEqual ||k == TokenKind.MinusEqual
+            || k == TokenKind.AsteriskEqual || k == TokenKind.AmpersandEqual || k == TokenKind.PipeEqual
+            || k == TokenKind.CaretEqual || k == TokenKind.ShiftLeftEqual || k == TokenKind.ShiftRightEqual)
+    }
+}
+
+
+make enum LexerState {
+    Normal,
+    Identifier,
+    NumberLit,
+    StringLit,
+    CharLit,
+    Slash,
+    Operator,
+}
+
+@pub
+make tokenize (content: str) -> !Token[] {
+    make tokens: Token[] = []
+    make pos: uint = 0
+    make span_start: uint = 0
+    make state = LexerState.Normal
+
+    while content[pos] != '\0' {
+        span_start = pos !
+
+        match state {
+            LexerState.Normal {
+                if content[pos].is_space() {
+                    pos = pos + 1
+                } elif content[pos].is_alpha() || content[pos] == '_' {
+                    state = LexerState.Identifier
+                } elif content[pos].is_digit() {
+                    state = LexerState.NumberLit
+                } elif content[pos] == '"' {
+                    state = LexerState.StringLit
+                } elif content[pos] == '\'' {
+                    state = LexerState.CharLit
+                } elif content[pos] == '/' {
+                    state = LexerState.Slash
+                } else {
+                    state = LexerState.Operator
+                }
+            }
+
+            LexerState.Identifier {
+                make buffer: str = ""
+                make buf_idx = 0
+                while content[pos].is_alnum() || content[pos] == '_' {
+                    if buf_idx < 255 {
+                        buffer.push(content[pos])
+                        buf_idx = buf_idx + 1
+                    } else {
+                        std::io::println("identifier too long")
+                        return error.IdentifierTooLong
+                    }
+                    pos = pos + 1
+                }
+
+                make kind = match_booleans(buffer.pin)
+                if kind == TokenKind.None {
+                    kind = match_keywords(buffer.pin)
+                }
+
+                make sp = util::Span { start = span_start, end = pos ! }
+                make tk = Token.create(buffer, sp, kind)
+                tokens.push(tk)
+                state = LexerState.Normal
+            }
+
+            LexerState.NumberLit {
+                make buffer: str = ""
+                make buf_idx = 0
+                make has_dot = false
+                make has_hex = false
+                make has_bin = false
+
+                if content[pos] == '0' && (content[pos + 1] == 'x' || content[pos + 1] == 'X') {
+                    has_hex = true
+                    buffer.push(content[pos])
+                    pos = pos + 1
+                    buf_idx = buf_idx + 1
+                    buffer.push(content[pos]) // x
+                    pos = pos + 1
+                    buf_idx = buf_idx + 1
+                } elif content[pos] == '0' && (content[pos + 1] == 'b' || content[pos + 1] == 'B') {
+                    has_bin = true
+                    buffer.push(content[pos])
+                    pos = pos + 1
+                    buf_idx = buf_idx + 1
+                    buffer.push(content[pos]) // b
+                    pos = pos + 1
+                    buf_idx = buf_idx + 1
+                }
+
+                while content[pos].is_digit() || content[pos] == '.' {
+                    if content[pos] == '.' {
+                        has_dot = true
+                    }
+                    buffer.push(content[pos])
+                    pos = pos + 1
+                    buf_idx = buf_idx + 1
+                }
+
+                make sp = util::Span { start = span_start, end = pos ! }
+                make tk = Token.create(buffer, sp, TokenKind.LiteralNum)
+                tokens.push(tk)
+                state = LexerState.Normal
+            }
+
+            LexerState.StringLit {
+                make buffer: str = ""
+                pos = pos + 1 // skip opening quote
+                while content[pos] != '"' && content[pos] != '\0' {
+                    buffer.push(content[pos])
+                    pos = pos + 1
+                }
+                if content[pos] == '"' { // skip closing quote
+                    pos = pos + 1
+                }
+                make sp = util::Span { start = span_start, end = pos ! }
+                make tk = Token.create(buffer, sp, TokenKind.LiteralString)
+                tokens.push(tk)
+                state = LexerState.Normal
+            }
+
+            LexerState.CharLit {
+                make buffer: str = ""
+                pos = pos + 1 // skip opening quote
+                while content[pos] != '\'' && content[pos] != '\0' {
+                    buffer.push(content[pos])
+                    pos = pos + 1
+                }
+                if content[pos] == '\'' { // skip closing quote
+                    pos = pos + 1
+                }
+                make sp = util::Span { start = span_start, end = pos ! }
+                make tk = Token.create(buffer, sp, TokenKind.LiteralChar)
+                tokens.push(tk)
+                state = LexerState.Normal
+            }
+
+            LexerState.Slash {
+                if content[pos + 1] == '/' { // line comment (//)
+                    pos = pos + 2
+                    while content[pos] != '\n' && content[pos] != '\0' {
+                        pos = pos + 1
+                    }
+                } elif content[pos + 1] == '=' { // slash equal (/=)
+                    pos = pos + 2
+                    make sp = util::Span { start = span_start, end = pos ! }
+                    make tk = Token.create("/=", sp, TokenKind.SlashEqual)
+                    tokens.push(tk)
+                } else { // division (/)
+                    pos = pos + 1
+                    make sp = util::Span { start = span_start, end = pos ! }
+                    make tk = Token.create("/", sp, TokenKind.Slash)
+                    tokens.push(tk)
+                }
+                state = LexerState.Normal
+            }
+
+            LexerState.Operator {
+                make t: char = content[pos]
+                pos = pos + 1
+                match t {
+                    '{' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("{", sp, TokenKind.LBrace)
+                        tokens.push(tk)
+                    }
+                    '}' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("}", sp, TokenKind.RBrace)
+                        tokens.push(tk)
+                    }
+                    '[' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("[", sp, TokenKind.LBracket)
+                        tokens.push(tk)
+                    }
+                    ']' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("]", sp, TokenKind.RBracket)
+                        tokens.push(tk)
+                    }
+                    '(' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("(", sp, TokenKind.LParen)
+                        tokens.push(tk)
+                    }
+                    ')' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create(")", sp, TokenKind.RParen)
+                        tokens.push(tk)
+                    }
+
+                    ';' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create(";", sp, TokenKind.Semicolon)
+                        tokens.push(tk)
+                    }
+
+                    ',' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create(",", sp, TokenKind.Comma)
+                        tokens.push(tk)
+                    }
+
+                    '.' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create(".", sp, TokenKind.Dot)
+                        tokens.push(tk)
+                    }
+
+                    '@' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("@", sp, TokenKind.At)
+                        tokens.push(tk)
+                    }
+                    '%' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("%", sp, TokenKind.Percent)
+                        tokens.push(tk)
+                    }
+
+                    '~' {
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("~", sp, TokenKind.Tilde)
+                        tokens.push(tk)
+                    }
+
+                    '<' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("<=", sp, TokenKind.LessEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("<", sp, TokenKind.Less)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '>' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create(">=", sp, TokenKind.GreaterEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create(">", sp, TokenKind.Greater)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '=' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("==", sp, TokenKind.EqualEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("=", sp, TokenKind.Equal)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '!' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("!=", sp, TokenKind.NotEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("!", sp, TokenKind.Not)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '?' {
+                        pos = pos + 1
+                        make sp = util::Span { start = span_start, end = pos ! }
+                        make tk = Token.create("?", sp, TokenKind.Question)
+                        tokens.push(tk)
+                    }
+
+                    ':' {
+
+                        if content[pos] == ':' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("::", sp, TokenKind.DoubleColon)
+                            tokens.push(tk)
+                        } else {
+
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create(":", sp, TokenKind.Colon)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '+' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("+=", sp, TokenKind.PlusEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("+", sp, TokenKind.Plus)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '*' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("*=", sp, TokenKind.AsteriskEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("*", sp, TokenKind.Asterisk)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '-' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("-=", sp, TokenKind.MinusEqual)
+                            tokens.push(tk)
+                        } elif content[pos] == '>' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("->", sp, TokenKind.Arrow)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("-", sp, TokenKind.Minus)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '&' {
+                        if content[pos] == '&' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("&&", sp, TokenKind.DoubleAmpersand)
+                            tokens.push(tk)
+                        } elif content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("&=", sp, TokenKind.AmpersandEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("&", sp, TokenKind.Ampersand)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '|' {
+                        if content[pos] == '|' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("||", sp, TokenKind.DoublePipe)
+                            tokens.push(tk)
+                        } elif content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("|=", sp, TokenKind.PipeEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("|", sp, TokenKind.Pipe)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    '^' {
+                        if content[pos] == '=' {
+                            pos = pos + 1
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("^=", sp, TokenKind.CaretEqual)
+                            tokens.push(tk)
+                        } else {
+                            make sp = util::Span { start = span_start, end = pos ! }
+                            make tk = Token.create("^", sp, TokenKind.Caret)
+                            tokens.push(tk)
+                        }
+                    }
+
+                    _ {
+                        return error.UnexpectedCharacter
+                    }
+                }
+                state = LexerState.Normal
+            }
+
+            _ {
+                return error.UnexpectedCharacter
+                std::io::println("unexpected character")
+                pos = pos + 1 // advance to avoid infinite loop on unexpected char
+                state = LexerState.Normal
+            }
+        }
+    }
+
+    make sp = util::Span { start = span_start, end = pos ! }
+    make token = Token.create("EOF", sp, TokenKind.EOF)
+    tokens.push(token)
+
+    return tokens
+}
+
+make match_booleans (buffer: ref<str>) -> TokenKind {
+    match buffer.* {
+        "true" { return TokenKind.KeyTrue }
+        "false" { return TokenKind.KeyFalse }
+        "none" { return TokenKind.KeyNone }
+        _ { return TokenKind.None }
+    }
+}
+
+make match_keywords (buffer: ref<str>) -> TokenKind {
+    match buffer.* {
+        "make" { return TokenKind.KeyMake }
+        "type" { return TokenKind.KeyType }
+        "enum" { return TokenKind.KeyEnum }
+
+        "if" { return TokenKind.KeyIf }
+        "elif" { return TokenKind.KeyElif }
+        "else" { return TokenKind.KeyElse }
+        "for" { return TokenKind.KeyFor }
+        "while" { return TokenKind.KeyWhile }
+        "match" { return TokenKind.KeyMatch }
+        "catch" { return TokenKind.KeyCatch }
+        "return" { return TokenKind.KeyReturn }
+        "error" { return TokenKind.KeyError }
+    }
+
+    return TokenKind.Identifier
+}
+
+@pub
+make print_kind (kind: TokenKind) {
+    match kind {
+        TokenKind.None { std::io::println("None") }
+        TokenKind.EOF { std::io::println("EOF") }
+        TokenKind.Identifier { std::io::println("Identifier") }
+        TokenKind.KeyMake { std::io::println("KeyMake") }
+        TokenKind.KeyType { std::io::println("KeyType") }
+        TokenKind.KeyEnum { std::io::println("KeyEnum") }
+        TokenKind.KeyIf { std::io::println("KeyIf") }
+        TokenKind.KeyElif { std::io::println("KeyElif") }
+        TokenKind.KeyElse { std::io::println("KeyElse") }
+        TokenKind.KeyFor { std::io::println("KeyFor") }
+        TokenKind.KeyWhile { std::io::println("KeyWhile") }
+        TokenKind.KeyMatch { std::io::println("KeyMatch") }
+        TokenKind.KeyCatch { std::io::println("KeyCatch") }
+        TokenKind.KeyReturn { std::io::println("KeyReturn") }
+        TokenKind.KeyTrue { std::io::println("KeyTrue") }
+        TokenKind.KeyFalse { std::io::println("KeyFalse") }
+        TokenKind.KeyNone { std::io::println("KeyNone") }
+
+        TokenKind.Plus { std::io::println("Plus") }
+        TokenKind.Minus { std::io::println("Minus") }
+        TokenKind.Asterisk { std::io::println("Astersik") }
+        TokenKind.Slash { std::io::println("Slash") }
+        TokenKind.Percent { std::io::println("Percent") }
+        TokenKind.Equal { std::io::println("Equal") }
+        TokenKind.Dot { std::io::println("Dot") }
+        TokenKind.Comma { std::io::println("Comma") }
+        TokenKind.Semicolon { std::io::println("SemiColon") }
+        TokenKind.Colon { std::io::println("Colon") }
+        TokenKind.DoubleColon { std::io::println("DoubleColon") }
+        TokenKind.Arrow { std::io::println("Arrow") }
+        TokenKind.FatArrow { std::io::println("FatArrow") }
+        TokenKind.At { std::io::println("At") }
+
+        TokenKind.PlusEqual { std::io::println("PlusEqual") }
+        TokenKind.MinusEqual { std::io::println("MinusEqual") }
+        TokenKind.EqualEqual { std::io::println("EqualEqual") }
+        TokenKind.LessEqual { std::io::println("LessEqual") }
+        TokenKind.GreaterEqual { std::io::println("GreaterEqual") }
+        TokenKind.NotEqual { std::io::println("NotEqual") }
+        TokenKind.AsteriskEqual { std::io::println("AsteriskEqual") }
+        TokenKind.SlashEqual { std::io::println("SlashEqual") }
+
+        TokenKind.LParen { std::io::println("LParen") }
+        TokenKind.RParen { std::io::println("RParen") }
+        TokenKind.LBrace { std::io::println("LBrace") }
+        TokenKind.RBrace { std::io::println("RBrace") }
+        TokenKind.LBracket { std::io::println("LBracket") }
+        TokenKind.RBracket { std::io::println("RBracket") }
+
+        TokenKind.Ampersand { std::io::println("Ampersand") }
+        TokenKind.DoubleAmpersand { std::io::println("DoubleAmpersand") }
+        TokenKind.AmpersandEqual { std::io::println("AmpersandEqual") }
+        TokenKind.Pipe { std::io::println("Pipe") }
+        TokenKind.DoublePipe { std::io::println("DoublePipe") }
+        TokenKind.PipeEqual { std::io::println("PipeEqual") }
+        TokenKind.Caret { std::io::println("Caret") }
+        TokenKind.CaretEqual { std::io::println("CaretEqual") }
+        TokenKind.ShiftLeft { std::io::println("ShiftLeft") }
+        TokenKind.ShiftLeftEqual { std::io::println("ShiftLeftEqual") }
+        TokenKind.ShiftRight { std::io::println("ShiftRight") }
+        TokenKind.ShiftRightEqual { std::io::println("ShiftRightEqual") }
+        TokenKind.Tilde { std::io::println("Tilde") }
+
+        TokenKind.EOF { std::io::println("EOF") }
+
+        _ { std::io::println("unknown") }
+    }
+}

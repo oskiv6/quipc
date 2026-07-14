@@ -1,0 +1,208 @@
+@pure @const {
+make util = @import "pkg.quip"
+make lexer = @import "../core/token.quip"
+
+make qtype = @import "../semantics/qtype.quip"
+make symbol = @import "../semantics/symbol.quip"
+}
+
+// ====
+
+@pub
+make enum QAST_Status {
+    Ok,
+    Error,
+}
+
+@pub
+make enum QAST_Kind {
+    Tag,
+    Function,
+    Var,
+    Expr,
+}
+
+@pub
+make type FuncCtx {
+    make is_returning: bool
+    make is_return_locked: bool
+    make res_type: qtype::QType
+}
+
+@pub
+make enum Visibility {
+    Public,
+    Private,
+}
+
+@pub
+make type QAST_Head {
+    make range: util::Range
+    make kind: QAST_Kind
+    make status: QAST_Status
+    make tags: owned<QAST_Head>[]
+}
+
+@pub
+make enum ExprKind {
+    Unknown,
+    Literal,
+    Identifier,
+    Binary,
+    Unary,
+    Call,
+    Access,
+    Constructor,
+    // Lambda
+}
+
+// QAST nodes
+
+
+@pub
+make type QAST_Tag {
+    make head: QAST_Head
+    make name: lexer::Token
+    make val: owned<QAST_Head>
+
+    make sig_type: owned<QAST_TypeSig>?
+}
+
+@pub
+make type QAST_TypeSig {
+    make range: util::Range
+
+    make name: lexer::Token
+    make inner: owned<QAST_TypeSig>[]
+
+    make array_size: owned<QAST_Head> // expr
+
+    make is_fallible: bool
+    make is_optional: bool
+    make is_generic: bool
+    make is_array: bool
+}
+
+@pub
+make type QAST_Func {
+    make head: QAST_Head
+
+    make name: lexer::Token
+
+    make res_type: qtype::QType
+    make sig_type: owned<QAST_TypeSig>?
+
+    make statements: QAST_Statements
+
+    make params: owned<QAST_Param>[]
+
+    // size of bytes allocated on stack
+    make local_size: uint
+
+    make mangled_name: str
+
+    make visibility: Visibility
+
+    make fctx: FuncCtx
+}
+
+@pub
+make type QAST_Arg {
+
+    make name: lexer::Token
+    make val = owned<QAST_Head> // expr
+
+}
+
+@pub
+make type QAST_Param {
+
+    make name: lexer::Token
+    make res_type: qtype::QType
+    make sig_type: owned<QAST_TypeSig>
+    make def_val: owned<QAST_Head>
+
+}
+
+@pub
+make type QAST_Type {
+    make head: QAST_Head
+
+    make name: lexer::Token
+    make generics: owned<QAST_TypeSig>[]
+
+}
+
+@pub
+make type QAST_Var {
+    make head: QAST_Head
+
+    make name: lexer::Token
+    make sig_type: owned<QAST_TypeSig>?
+    make res_type: qtype::QType
+
+    make val: owned<QAST_Head>?
+
+}
+
+@pub
+make type QAST_Statements {
+
+    make buffer: owned<QAST_Head>[]
+    make local_table: symbol::SymbolTable
+
+}
+
+@pub
+make type QAST_Expr {
+    make head: QAST_Head
+    make kind: ExprKind
+    make res_type: qtype::QType
+
+    make binary: ExprBinary
+    make constructor: ExprConstructor
+    make access: ExprAccess
+    make unary: ExprUnary
+    make call: ExprCall
+
+    make literal: lexer::Token
+
+    make is_copy: bool
+}
+
+// Expression helpers
+
+@pub
+make type ExprBinary {
+    make left: owned<QAST_Head>
+    make op: lexer::Token
+    make right: owned<QAST_Head>
+}
+
+@pub
+make type ExprConstructor {
+    make fields: owned<QAST_Head>[]
+}
+
+@pub
+make type ExprAccess {
+    make left: owned<QAST_Head>
+    make right: owned<QAST_Head>
+
+    make is_array: bool
+}
+
+@pub
+make type ExprCall {
+    make callee: owned<QAST_Head>
+    make args: QAST_Arg[]
+
+    make catch_stmts: QAST_Statements
+    make catch_bind: variant<void, lexer::Token>
+}
+
+@pub
+make type ExprUnary {
+    make op: lexer::Token
+    make operand: owned<QAST_Head>
+}

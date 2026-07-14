@@ -1,0 +1,15 @@
+@pure @const make std = @import "stdlib.quip"
+// remember to check the stdlib path
+
+@pub @entry
+make main () -> int {
+    std::io::println(fib(10).to_str())
+    return 0
+}
+
+make fib (n: int) -> int {
+    if n < 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}

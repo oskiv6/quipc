@@ -1,0 +1,82 @@
+@pure @const {
+make std = @import "stdlib.quip"
+
+make um = @import "unit_manager.quip"
+make configuration = @import "config.quip"
+}
+
+@pub
+make type Driver {
+
+    make manager: um::UnitManager
+    make config: configuration::Config
+    // make pipeline: pipe::Pipeline
+
+    @pub
+    make init () -> Driver {
+        return Driver {
+            config = configuration::Config.init()
+        }
+    }
+
+    @pub @this
+    make build () -> !void {
+
+        make f = std::io::File.open(std::io::Path.create("./build.quip")) catch {
+            return error.FileNotFound
+        }
+        f.close()
+
+        make b = std::Build.default()
+        b.entry_file = std::io::Path.create("./build.quip")
+        b.entry_point = "build"
+
+        make exe = std::Executable.default()
+        exe.name = "build"
+        exe.path_build = std::io::Path.create("./.build")
+
+        b.executables.push(exe)
+        b.proceed() catch err {
+            return err
+        }
+
+        make cmd = std::process::Command.create("target/.build/build", [])
+
+        if std::process::Process.run(cmd) != 0 {
+            return error.FailedToBuild
+        }
+    }
+
+    @pub @this
+    make compile () -> !void {
+        make f = std::io::File.open(this.config.input) catch {
+            return error.FileNotFound
+        }
+        f.close()
+
+        // if the main file doesn't compile return an error
+        make manager = um::UnitManager.init(this.config.input) catch err {
+            return err
+        }
+        this.manager = manager
+
+        for unit : this.manager.units.iter() {
+
+            unit.proceed() catch  err {
+                match err {
+
+                    error.IdentifierTooLong {
+                        std::io::println("identifier too long")
+                        return error.CompilationAborted
+                    }
+
+                    error.UnexpectedCharacter {
+                        std::io::println("unexpected character")
+                        return error.CompilationAborted
+                    }
+                }
+            }
+        }
+
+    }
+}

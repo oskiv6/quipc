@@ -1,0 +1,8 @@
+@pure @const make std = @import "stdlib.quip"
+// remember to check the stdlib path
+
+@pub @entry
+make main () -> int {
+    std::io::println("Hello, World")
+    return 0
+}

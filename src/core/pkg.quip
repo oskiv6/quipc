@@ -1,0 +1,4 @@
+@pub @pure @const {
+make driver = @import "driver.quip"
+make config = @import "config.quip"
+}

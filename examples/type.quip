@@ -1,0 +1,45 @@
+@pure @const make std = @import "stdlib.quip"
+// remember to check the stdlib path
+
+make type Person {
+
+    // quip is not OOP
+    // functions defined in Type with `@this` tag are regular functions with implicit `this: ptr<Person>` argument
+
+    make name: str
+    make age: int
+
+    @pub @this
+    make greet () {
+        std::io::println("My name is ".to_str() + this.name + " and I am ".to_str() + this.age.to_str())
+    }
+
+    @pub
+    make init (name: str, age: int) -> Person {
+        return Person {
+            name = name,
+            age = age
+        }
+    }
+
+}
+
+@pub @entry
+make main () {
+    make john = Person {
+        name = "John",
+        age = 30
+    }
+    john.greet()
+
+    Person {
+        name = "Anna",
+        age = 28
+    }.greet()
+
+    make tim = Person.init("Tim", 48)
+    tim.greet()
+    tim.greet()
+
+    return 0
+}

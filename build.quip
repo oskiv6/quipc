@@ -1,0 +1,22 @@
+@pure @const {
+make std = @import "stdlib.quip"
+}
+
+@pub @entry
+make main () {
+
+    std::io::println("building Quip compiler")
+
+    make b = std::Build.default()
+
+    make exe = std::Executable.default()
+    make path = std::io::Path.create("bootstrap/")
+    exe.path_build = path
+    exe.name = "quipc"
+
+    b.executables.push(exe)
+
+    b.proceed().unwrap()
+
+    return 0
+}

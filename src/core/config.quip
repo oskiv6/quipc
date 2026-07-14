@@ -1,0 +1,125 @@
+@pure @const {
+make std = @import "stdlib.quip"
+make ffi = @import "cffi.quip"
+}
+
+// ====
+
+@pub
+make enum CommandKind {
+    Compile,
+    Build,
+    Run,
+    None
+}
+
+@pub
+make type Config {
+
+    make command: CommandKind
+
+    make input: std::io::Path
+    make output: std::io::Path
+
+    make optimization: std::Optimization
+    make options: std::Options
+    make mode: std::Mode
+    make platform: std::Platform
+
+    @pub
+    make init () -> Config {
+        make config = Config {}
+        config.command = CommandKind.None
+
+        config.output = std::io::Path.create("target/debug/")
+        config.options = std::Options.default()
+        config.mode = std::Mode.Debug
+        config.platform = std::Platform.Native
+
+
+
+        // Config.parse(argv, config.pin)
+
+        return config
+    }
+
+    @pub @this
+    make parse (argv: ptr<char>[]) -> !void {
+
+        make iter = argv.iter()
+
+        for item : iter {
+
+            make t = item.to_str()
+
+            match t {
+                "compile" {
+                    this.command = CommandKind.Compile
+
+                    match iter.next() {
+                        f: ptr<char> {
+                            make tt = f.to_str()
+                            this.input = std::io::Path.create(tt)
+                        }
+
+                        none {
+                            return error.InvalidArgument
+                        }
+                    }
+                }
+
+                "build" {
+                    this.command = CommandKind.Build
+                    this.input = std::io::Path.create("./build.quip")
+                }
+
+                "run" { this.command = CommandKind.Run }
+
+                "-o" {
+                    match iter.next() {
+                        f: ptr<char> {
+                            make tt = f.to_str()
+                            this.output = std::io::Path.create(tt)
+                        }
+
+                        none {
+                            return error.InvalidArgument
+                        }
+                    }
+                }
+
+                "-O2" { this.optimization = std::Optimization.Standard }
+                "-O3" { this.optimization = std::Optimization.Aggressive }
+
+                "--show-debug" { this.options.show_quipc_debug = true }
+                "--show-warnings" { this.options.show_warnings = true }
+                "--memory_dump" { this.options.show_memory_dump = true }
+
+                "--release" { this.mode = std::Mode.Release }
+
+                "--platform=" {
+                    match iter.next() {
+                        f: ptr<char> {
+                            make tt = f.to_str()
+                            match tt {
+                                "windows" { this.platform = std::Platform.Windows }
+                                "linux" { this.platform = std::Platform.Linux }
+                                "macos" { this.platform = std::Platform.Macos }
+                            }
+                        }
+
+                        none {
+                            return error.InvalidArgument
+                        }
+                    }
+                }
+
+                _ {
+                    this.command = CommandKind.None
+                    this.optimization = std::Optimization.None
+                }
+
+            }
+        }
+    }
+}

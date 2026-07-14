@@ -1,0 +1,32 @@
+@pure @const {
+make std = @import "stdlib.quip"
+
+make um = @import "../core/unit_manager.quip"
+}
+
+@pub
+make type Span {
+    make start: uint
+    make end: uint
+}
+
+@pub
+make type Range {
+    make start: Span
+    make end: Span
+
+    // not the best option to use ptr<>, but better than ref<ref<>>
+    make unit: ptr<um::Unit>
+}
+
+@pub
+make type Identifier {
+    make name: str
+    make span: Span
+}
+
+@pub
+make type Location {
+    make line: u32
+    make col: u32
+}

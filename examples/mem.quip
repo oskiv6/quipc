@@ -1,0 +1,32 @@
+@pure @const make std = @import "stdlib.quip"
+// remember to check the stdlib path
+
+@pub @entry
+make main () {
+
+    make data: owned<int> = std::heap.alloc(@sizeof int).unwrap()
+    data.* = 10
+    std::io::println(data.*.to_str())
+
+    // memory is deallocated automatically
+
+    pinning()
+
+    return 0
+}
+
+make pinning () {
+
+    make data: str = "Hello, World"
+
+    make pdata: ref<str> = data.pin // without pin, the data is moved, and the old owner is illegal to use
+
+    std::io::println(pdata.*)
+    // variable 'pdata' dies here, so the pin is released
+    // you can use only one active pin at a time
+
+    make cdata: str = data ! // the '!' operator at the end of expression means "copy"
+    cdata = "Goodbye, World"
+    std::io::println(data)
+    std::io::println(cdata)
+}

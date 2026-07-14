@@ -1,0 +1,81 @@
+@pure @const {
+make std = @import "stdlib.quip"
+make core = @import "core/pkg.quip"
+}
+
+@pub @entry
+make main (argc: int, argv: ptr<char>[]) -> int {
+    if argv.len() < 2 {
+        std::io::println("usage: quipc_bootstrap <flag> <command>")
+        return 1
+    }
+
+    make driver = core::driver::Driver.init()
+    driver.config.parse(argv) catch {
+        print_help()
+        return 1
+    }
+
+    match driver.config.command {
+
+        core::config::CommandKind.Compile {
+            std::io::println("compile command")
+            driver.compile() catch err {
+                match err {
+                    error.FileNotFound {
+                        std::io::println("unable to find 'build.quip' build script")
+                        return 1
+                    }
+
+                    error.CompilationAborted {
+                        std::io::println("compilation aborted")
+                        return 1
+                    }
+
+                    _ { return 1 }
+
+                }
+
+            }
+        }
+
+        core::config::CommandKind.Build {
+            std::io::println("build command")
+            driver.build() catch err {
+                match err {
+                    error.FileNotFound {
+                        std::io::println("unable to find 'build.quip' build script")
+                        return 1
+                    }
+
+                    _ { return 1 }
+
+                }
+            }
+        }
+
+        core::config::CommandKind.Run {
+            std::io::println("run command")
+        }
+
+        _ {
+            std::io::println("unknown command, aborting")
+            return 1
+        }
+    }
+
+    return 0
+}
+
+make print_help () -> void {
+    std::io::println("usage: quipc_bootstrap <flag> <command>")
+    std::io::println("")
+    std::io::println("commands:")
+    std::io::println("  compile <path/to/file.quip>         - compile the source code")
+    std::io::println("  build                               - build using the 'build.quip' script")
+    std::io::println("  run                                 - run the compiled code")
+    std::io::println("  help                                - show this help message")
+    std::io::println("")
+    std::io::println("flags:")
+    std::io::println("  -o, --output <path/to/executable>   - specify the output path for the executable")
+}

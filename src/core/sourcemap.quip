@@ -1,0 +1,56 @@
+@pure @const {
+make util = @import "../util/pkg.quip"
+}
+
+@pub
+make type LineMap {
+
+    make offsets: u32[] // linemap[i] = start index of line i+1
+
+    @pub
+    make init (content: ref<str>) -> LineMap {
+
+        make map = LineMap {}
+        map.offsets = []
+
+        make index: uint = 0
+
+        while content.*[index] != '\0' {
+
+            if content.*[index] == '\n' {
+                map.offsets.push(index + 1)
+            }
+
+            index = index + 1
+        }
+
+        return map
+    }
+
+    @pub @this
+    make resolve (offset: u32) -> util::Location {
+        make loc = util::Location { line = 0, col = 0 }
+
+        // binary search
+        make low: uint = 0
+        make high: uint = this.offsets.len() - 1
+        make found: uint = 0
+
+        while low <= high {
+            make mid: uint = low + (high - low) / 2
+
+            if this.offsets[mid] <= offset {
+                found = mid
+                low = mid + 1
+            } else {
+                if mid == 0 { break } // underflow
+                high = mid - 1
+            }
+        }
+
+        loc.line = found + 1
+        loc.col = (offset - this.offsets[found]) + 1
+
+        return loc
+    }
+}

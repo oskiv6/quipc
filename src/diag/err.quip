@@ -1,0 +1,16 @@
+@pub
+make enum Err {
+    None,
+
+    UnexpectedToken,
+    UnexpectedEndOfFile,
+    InvalidSyntax,
+
+    BadNodeKind,
+
+}
+
+@pub
+make enum Warn {
+    None,
+}

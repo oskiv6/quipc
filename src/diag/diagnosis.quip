@@ -1,0 +1,135 @@
+@pure @const {
+make std = @import "stdlib.quip"
+
+make util = @import "../util/pkg.quip"
+make e = @import "err.quip"
+}
+
+// ====
+
+
+@pub
+make enum DiagKind {
+    Panic,      // Compiler internal error
+    Error,      // Compilation failure, Severity 0
+    Warning,    // Severity 1
+    Info,       // Severity 2
+    Help        // Severity 3
+}
+
+@pub
+make type Label {
+    make range: util::Range
+    make msg: str
+
+    @pub
+    make create (range: util::Range, msg: str) -> Label {
+        make label = Label {}
+        label.range = range
+        label.msg = msg
+
+        return label
+    }
+}
+
+@pub
+make type Diag {
+    make kind: DiagKind
+    make msg: str
+
+    make range: util::Range
+
+    make code: str
+
+    make labels: Label[]
+    make help_msg: str
+
+    @pub
+    make warn (code: e::Warn, range: util::Range, msg: str) -> Diag {
+        make d = Diag {}
+        d.kind = DiagKind.Error
+        d.msg = msg
+        return d
+    }
+
+    @pub
+    make err (code: e::Err, range: util::Range, msg: str) -> owned<Diag> {
+        make d: owned<Diag> = std::heap.alloc(@sizeof Diag).unwrap()
+        d.*.kind = DiagKind.Error
+        d.*.msg = msg
+        return d
+    }
+
+    @pub
+    make panic (code: e::Err, msg: str) -> owned<Diag> {
+        make d: owned<Diag> = std::heap.alloc(@sizeof Diag).unwrap()
+        d.*.kind = DiagKind.Error
+        d.*.msg = msg
+        return d
+    }
+
+    @pub @this
+    make attach (label: Label) -> void {
+        this.labels.push(label)
+    }
+
+    @pub @this
+    make help (msg: str) -> void {
+        this.help_msg = msg
+    }
+
+    @pub @this
+    make emit () {
+        std::io::println(this.msg)
+
+
+        return 0
+
+
+
+
+    }
+}
+
+
+@pub
+make type Diagnostic {
+    make diags: owned<Diag>[]
+    make limit: u32
+
+    @pub
+    make init () -> Diagnostic {
+        return Diagnostic {}
+    }
+
+    @pub @this
+    make report (diag: owned<Diag>) -> bool {
+
+        diag.*.emit()
+        // this.diags.push(diag)
+
+        if diag.*.kind == DiagKind.Panic {
+            return true
+        }
+
+
+        return false
+    }
+
+    @pub @this
+    make has_errors () -> bool {
+
+        for d : this.diags.iter() {
+            if d.*.kind == DiagKind.Error || d.*.kind == DiagKind.Panic {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    @pub
+    make to_lsp_json () {
+
+    }
+}

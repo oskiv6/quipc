@@ -1,0 +1,128 @@
+// Unit is responsible for representing single file
+// it contains pipeline, which shows the current state of the compilation process
+// tokens,
+// AST -> QAST
+// other internal data
+
+// The UnitManager is responsible for managing already imported files and mark the main file
+
+@pure @const {
+make std = @import "stdlib.quip"
+make lexer = @import "token.quip"
+make parser = @import "parser.quip"
+
+make diags = @import "../diag/diagnosis.quip"
+
+make linemap = @import "../core/sourcemap.quip"
+}
+
+@pub
+make enum UnitStatus {
+    Unloaded,
+    Lexing,
+    Parsing,
+    PreAnalysis,
+    Analysis,
+    MemAnalysis,
+    LLVM,
+    Done
+}
+
+@pub
+make type Unit {
+// responsible for representing single file data
+
+    make content: str
+    make map: linemap::LineMap
+    make tokens: lexer::Token[]
+
+    make status: UnitStatus
+
+    make lsp_mode: bool
+    make diag: diags::Diagnostic
+
+
+    @pub
+    make init (path: std::io::Path) -> !Unit {
+
+        make u = Unit {}
+        u.diag = diags::Diagnostic.init()
+        u.lsp_mode = false
+
+
+        make f = std::io::File.open(path) catch {
+            std::io::println("File not found")
+            return error.UnableToInitUnit
+        }
+
+        f.read() catch {
+            return error.UnableToInitUnit
+        }
+
+        u.content = f.content
+
+        u.map = linemap::LineMap.init(u.content.pin)
+
+        f.close()
+        u.status = UnitStatus.Unloaded
+
+        return u
+    }
+
+    @pub @this
+    make set_lsp_mode () {
+        this.lsp_mode = true
+    }
+
+    @pub @this
+    make proceed () -> !void {
+        this.status = UnitStatus.Lexing
+        this.tokens = lexer::tokenize(this.content) catch err {
+            return err
+        }
+
+        // disabled as it doesnt work yet
+        // make p = parser::Parser.init(this.tokens.pin)
+        // make qast = p.proceed(this)
+        // parser::debug_display(qast)
+
+        return
+    }
+}
+
+
+
+
+@pub
+make type UnitManager {
+
+    make units: Unit[]
+
+    @pub
+    make init (main: std::io::Path) -> !UnitManager {
+
+        make unit: Unit = Unit.init(main) catch {
+            return error.MissingMainUnit
+        }
+
+        make manager = UnitManager {}
+        manager.units.push(unit)
+
+        return manager
+    }
+
+    @pub @this
+    make open (path: std::io::Path) -> void {
+        return
+    }
+
+    @pub @this
+    make proceed_all () -> !void {
+        for unit : this.units.iter() {
+            unit.proceed() catch err {
+                return err
+            }
+        }
+    }
+
+}

@@ -1,0 +1,15 @@
+
+make type Symbol {
+
+
+
+
+
+}
+
+@pub
+make type SymbolTable {
+
+
+
+}
