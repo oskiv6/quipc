@@ -81,10 +81,9 @@ make type Unit {
             return err
         }
 
-        // disabled as it doesnt work yet
-        // make p = parser::Parser.init(this.tokens.pin)
-        // make qast = p.proceed(this)
-        // parser::debug_display(qast)
+        make p = parser::Parser.init(this.tokens.pin)
+        make qast = p.proceed(this)
+        parser::debug_display(qast)
 
         return
     }

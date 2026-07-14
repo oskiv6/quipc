@@ -1,2 +1,7 @@
-// testing the bootstrap compiler
-make name = 10
+@pub @entry
+make main (a: int) {
+
+    make test = 10
+    make test1 = test
+
+}

@@ -13,7 +13,6 @@ make um = @import "unit_manager.quip"
 make util = @import "../util/pkg.quip"
 }
 
-
 @pub
 make type Parser {
     make tokens: ref<lexer::Token[]>
@@ -67,7 +66,7 @@ make type Parser {
                 }
             }
 
-            std::io::println(this.current().*.lexeme)
+            // std::io::println(this.current().*.lexeme)
 
             if this.current().*.kind == lexer::TokenKind.EOF {
                 break
@@ -85,20 +84,6 @@ make type Parser {
         node.*.head.kind = qast::QAST_Kind.Tag
         node.*.head.range.unit = ctx
         node.*.head.range.start = this.current().*.span
-
-        // this.expect(lexer::TokenKind.At) catch {
-        //     node.*.head.status = qast::QAST_Status.Error
-        //     node.*.head.range.end = this.current().*.span
-
-        //     make d = diag::Diag.err(err::Err.UnexpectedToken, node.*.head.range, "unexpected token")
-        //     ctx.*.diag.report(d)
-
-        //     std::io::println("recovery")
-        //     this.recover(ctx)
-        //     @unsafe return node
-        // }
-
-        // this.current().*.show()
 
         node.*.name = this.expect(lexer::TokenKind.Identifier) catch {
 
@@ -142,10 +127,14 @@ make type Parser {
             lexer::TokenKind.Identifier {
 
                 if this.next().*.kind == lexer::TokenKind.LParen {
+                    std::heap.free(node)
+                    node = this.parse_func(ctx)
+                    return node
 
                 } else {
                     std::heap.free(node)
-                    node = this.parse_var(ctx) return node
+                    node = this.parse_var(ctx)
+                    return node
                 }
             }
 
@@ -154,7 +143,6 @@ make type Parser {
             lexer::TokenKind.KeyEnum {}
 
             _ {
-
                 std::io::println(this.index.to_str())
 
                 make d = diag::Diag.err(err::Err.UnexpectedToken, util::Range {}, "unexepcted token")
@@ -162,8 +150,6 @@ make type Parser {
                 ctx.*.diag.report(d)
 
                 this.recover(ctx)
-
-
             }
         }
 
@@ -171,9 +157,37 @@ make type Parser {
     }
 
     @this
+    make parse_func (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
+        this.advance()
+
+        make node: owned<qast::QAST_Func> = std::heap.alloc(@sizeof qast::QAST_Func).unwrap()
+        node.*.head.kind = qast::QAST_Kind.Func
+        node.*.head.status = qast::QAST_Status.Ok
+        node.*.head.range.start = this.current().*.span
+        node.*.head.range.unit = ctx
+
+        node.*.name = this.expect(lexer::TokenKind.Identifier) catch {}.*
+
+        this.expect(lexer::TokenKind.LParen) catch {}
+        node.*.params = this.parse_param(ctx)
+
+        // std::io::println(this.current().*.lexeme)
+
+        if this.current().*.kind == lexer::TokenKind.Arrow {
+            this.advance()
+            node.*.sig_type = this.parse_type_signature(ctx)
+        }
+
+        node.*.statements = this.parse_statements(ctx)
+
+        @unsafe return node
+    }
+
+    @this
     make parse_var (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
         make node: owned<qast::QAST_Var> = std::heap.alloc(@sizeof qast::QAST_Var).unwrap()
         node.*.head.kind = qast::QAST_Kind.Var
+        node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
         node.*.head.range.unit = ctx
 
@@ -195,11 +209,16 @@ make type Parser {
 
         node.*.val = none
         if this.current().*.kind == lexer::TokenKind.Colon {
+
+            std::io::println(this.current().*.lexeme)
+
             this.advance()
+            std::io::println(this.current().*.lexeme)
+
             satisfied = true
             node.*.sig_type = this.parse_type_signature(ctx)
 
-            if this.current().*.kind != lexer::TokenKind.Equal {
+            if this.current().*.kind == lexer::TokenKind.Equal {
                 this.advance()
                 node.*.val = this.parse_expr(ctx)
             }
@@ -245,13 +264,11 @@ make type Parser {
 
                 make arg = qast::QAST_Arg {}
                 arg.val = this.parse_expr(ctx)
-
                 args.push(arg)
              }
 
              if this.current().*.kind == lexer::TokenKind.Comma {
                  this.advance()
-
              } elif this.current().*.kind == lexer::TokenKind.RParen {
                  break
              } else {
@@ -262,8 +279,9 @@ make type Parser {
 
                  return args
              }
-
         }
+
+        this.expect(lexer::TokenKind.RParen) catch {}
 
         return args
     }
@@ -335,6 +353,82 @@ make type Parser {
     }
 
     @this
+    make parse_param (ctx: ptr<um::Unit>) -> qast::QAST_Param[] {
+        make params: qast::QAST_Param[] = []
+
+        while this.current().*.kind != lexer::TokenKind.RParen {
+            std::io::println(this.current().*.lexeme)
+
+            make param: qast::QAST_Param = qast::QAST_Param {}
+            param.name = this.expect(lexer::TokenKind.Identifier) catch {}.*
+            this.expect(lexer::TokenKind.Colon) catch {}
+
+            para*.sig_type = this.parse_type_signature(ctx)
+
+            if this.current().*.kind == lexer::TokenKind.Equal {
+                this.advance()
+
+                param.def_val = this.parse_expr(ctx)
+            }
+
+            if this.current().*.kind == lexer::TokenKind.Comma {
+                this.advance()
+            }
+
+            params.push(param)
+        }
+
+        this.expect(lexer::TokenKind.RParen) catch {}
+
+        return params
+    }
+
+    @this
+    make parse_statement (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
+        match this.current().*.kind {
+            lexer::TokenKind.KeyMake {
+                return this.parse_make(ctx)
+            }
+
+            _ {
+                return this.parse_expr(ctx)
+            }
+        }
+    }
+
+    @this
+    make parse_statements (ctx: ptr<um::Unit>) -> qast::QAST_Statements {
+        make stmts = qast::QAST_Statements {
+            buffer = [],
+            local_table = symbol::SymbolTable {}
+        }
+
+        this.expect(lexer::TokenKind.LBrace) catch {
+            make d = diag::Diag.err(err::Err.UnexpectedToken, util::Range {}, "unexpected token")
+            ctx.*.diag.report(d)
+
+            this.recover(ctx)
+
+            //return error.UnexpectedToken
+        }
+
+        while this.current().*.kind != lexer::TokenKind.RBrace && this.current().*.kind != lexer::TokenKind.EOF {
+            stmts.buffer.push(this.parse_statement(ctx))
+        }
+
+        this.expect(lexer::TokenKind.RBrace) catch {
+            make d = diag::Diag.err(err::Err.UnexpectedToken, util::Range {}, "unexpected token")
+            ctx.*.diag.report(d)
+
+            //return error.UnexpectedToken
+            this.recover(ctx)
+        }
+
+
+        return stmts
+    }
+
+    @this
     make parse_expr (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
 
         make tags: owned<qast::QAST_Head>[] = []
@@ -356,7 +450,6 @@ make type Parser {
 
             node = expr
         }
-
 
         @unsafe return node
     }
@@ -749,11 +842,7 @@ make type Parser {
                         this.advance()
                     }
 
-                    catch_stmts = (this.parse_statements(ctx) catch {
-                        left.*.status = qast::QAST_Status.Error
-                        this.recover(ctx)
-                        return left
-                    })
+                    catch_stmts = this.parse_statements(ctx)
                 }
 
                 make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
@@ -775,52 +864,7 @@ make type Parser {
     }
 
     @this
-    make parse_statement (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
-        match this.current().*.kind {
-            lexer::TokenKind.KeyMake {
-                return this.parse_make(ctx)
-            }
-            _ {
-                return this.parse_expr(ctx)
-            }
-        }
-    }
-
-    @this
-    make parse_statements (ctx: ptr<um::Unit>) -> !qast::QAST_Statements {
-        make stmts = qast::QAST_Statements {
-            buffer = [],
-            local_table = symbol::SymbolTable {}
-        }
-
-        this.expect(lexer::TokenKind.LBrace) catch {
-            make d = diag::Diag.err(err::Err.UnexpectedToken, util::Range {}, "unexpected token")
-            ctx.*.diag.report(d)
-
-            return error.UnexpectedToken
-        }
-
-        while this.current().*.kind != lexer::TokenKind.RBrace && this.current().*.kind != lexer::TokenKind.EOF {
-            stmts.buffer.push(this.parse_statement(ctx))
-        }
-
-        this.expect(lexer::TokenKind.RBrace) catch {
-            make d = diag::Diag.err(err::Err.UnexpectedToken, util::Range {}, "unexpected token")
-            ctx.*.diag.report(d)
-
-            return error.UnexpectedToken
-        }
-
-
-        return stmts
-    }
-
-
-    @this
     make parse_primary (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
-
-
-
         if this.current().*.kind == lexer::TokenKind.LiteralNum || this.current().*.kind == lexer::TokenKind.LiteralString
         || this.current().*.kind == lexer::TokenKind.LiteralChar || this.current().*.kind == lexer::TokenKind.KeyTrue
         || this.current().*.kind == lexer::TokenKind.KeyFalse || this.current().*.kind == lexer::TokenKind.KeyNone {
@@ -831,6 +875,8 @@ make type Parser {
 
             e.*.kind = qast::ExprKind.Literal
             e.*.literal = this.current().*
+
+            this.advance()
 
             @unsafe return e
         }
@@ -870,7 +916,6 @@ make type Parser {
 
                 @unsafe return e
             }
-
         }
 
         // handle identifier as fallback (not a constructor)
@@ -991,13 +1036,15 @@ make _print_node (node: owned<qast::QAST_Head>, depth: int) -> void {
                     a: ptr<qast::QAST_Head> {
                         _print_indent(depth)
                         std::io::println("val:")
-                        _print_node(tag_val, depth + 1)
+                        if tag_val != none {
+                            _print_node(tag_val, depth + 1)
+                        }
                     }
                     _ { }
                 }
             }
 
-            qast::QAST_Kind.Function {
+            qast::QAST_Kind.Func {
                 make func: owned<qast::QAST_Func> = node
                 _print_indent(depth)
                 std::io::println("Func:")
@@ -1009,7 +1056,7 @@ make _print_node (node: owned<qast::QAST_Head>, depth: int) -> void {
                 while pi < func.*.params.len() {
                     make param = func.*.params[pi]
                     _print_indent(depth + 1)
-                    std::io::println(param.*.name.lexeme)
+                    std::io::println(param.name.lexeme)
                     pi = pi + 1
                 }
                 _print_indent(depth)

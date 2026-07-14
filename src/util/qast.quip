@@ -17,7 +17,7 @@ make enum QAST_Status {
 @pub
 make enum QAST_Kind {
     Tag,
-    Function,
+    Func,
     Var,
     Expr,
 }
@@ -58,7 +58,6 @@ make enum ExprKind {
 
 // QAST nodes
 
-
 @pub
 make type QAST_Tag {
     make head: QAST_Head
@@ -94,7 +93,7 @@ make type QAST_Func {
 
     make statements: QAST_Statements
 
-    make params: owned<QAST_Param>[]
+    make params: QAST_Param[]
 
     // size of bytes allocated on stack
     make local_size: uint
@@ -119,7 +118,7 @@ make type QAST_Param {
 
     make name: lexer::Token
     make res_type: qtype::QType
-    make sig_type: owned<QAST_TypeSig>
+    make sig_type: owned<QAST_TypeSig>?
     make def_val: owned<QAST_Head>
 
 }
