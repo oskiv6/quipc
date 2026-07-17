@@ -68,7 +68,7 @@ The compiler expects the stdlib to be located in /usr/local/lib/quip/. Alternati
 @pure @const make std = @import "path/to/unit.quip"
 ```
 
-# Building the project
+## Building the project
 
 Follow these three steps to bootstrap the compiler:
 1. Build `build.quip` using the C reference implementation:
@@ -85,3 +85,13 @@ quipc compile build.quip
 ```
 
 *Keep in mind that the bootstrapped compiler is not yet capable of running complex Quip code. For testing full language features, please continue using the C reference implementation (quipc).*
+
+
+## License
+
+Quip is dual-licensed under the terms of both MIT License and the Apache License (Version 2.0).
+
+See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE) for details.
+
+### Third-Party Software
+The `quipc` compiler statically links with [LLVM](https://llvm.org/), which is distributed under the [Apache License v2.0 with LLVM Exceptions](https://llvm.org/LICENSE.txt). Programs compiled by `quipc` do not inherit any licensing obligations from LLVM or the compiler itself.
