@@ -15,7 +15,8 @@ make diags = @import "../diag/diagnosis.quip"
 
 make linemap = @import "../core/sourcemap.quip"
 
-make flattening = @import "../semantics/flattening.quip"
+// the flattening is not working now, may giev compile errors
+// make flattening = @import "../semantics/flattening.quip"
 }
 
 @pub
@@ -85,7 +86,8 @@ make type Unit {
             std::process::abort()
         }
 
-        flattening::run(qast)
+        // not working
+        // flattening::run(qast)
 
         parser::debug_display(qast)
 
