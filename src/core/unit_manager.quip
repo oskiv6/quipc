@@ -14,6 +14,8 @@ make parser = @import "parser.quip"
 make diags = @import "../diag/diagnosis.quip"
 
 make linemap = @import "../core/sourcemap.quip"
+
+make flattening = @import "../semantics/flattening.quip"
 }
 
 @pub
@@ -30,8 +32,6 @@ make enum UnitStatus {
 
 @pub
 make type Unit {
-// responsible for representing single file data
-
     make content: str
     make map: linemap::LineMap
     make tokens: lexer::Token[]
@@ -41,14 +41,12 @@ make type Unit {
     make lsp_mode: bool
     make diag: diags::Diagnostic
 
-
     @pub
     make init (path: std::io::Path) -> !Unit {
 
         make u = Unit {}
         u.diag = diags::Diagnostic.init()
         u.lsp_mode = false
-
 
         make f = std::io::File.open(path) catch {
             std::io::println("File not found")
@@ -83,14 +81,17 @@ make type Unit {
 
         make p = parser::Parser.init(this.tokens.pin)
         make qast = p.proceed(this)
+        if this.diag.has_errors() {
+            std::process::abort()
+        }
+
+        flattening::run(qast)
+
         parser::debug_display(qast)
 
         return
     }
 }
-
-
-
 
 @pub
 make type UnitManager {

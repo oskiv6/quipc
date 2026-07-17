@@ -20,6 +20,15 @@ make enum QAST_Kind {
     Func,
     Var,
     Expr,
+    Type,
+    Enum,
+    If,
+    For,
+    While,
+    Match,
+    Catch,
+    Assign,
+    Return,
 }
 
 @pub
@@ -62,8 +71,8 @@ make enum ExprKind {
 make type QAST_Tag {
     make head: QAST_Head
     make name: lexer::Token
-    make val: owned<QAST_Head>
 
+    make val: owned<QAST_Head>?
     make sig_type: owned<QAST_TypeSig>?
 }
 
@@ -90,6 +99,7 @@ make type QAST_Func {
 
     make res_type: qtype::QType
     make sig_type: owned<QAST_TypeSig>?
+    make generics: lexer::Token[]
 
     make statements: QAST_Statements
 
@@ -103,6 +113,53 @@ make type QAST_Func {
     make visibility: Visibility
 
     make fctx: FuncCtx
+}
+
+@pub
+make type QAST_Type {
+    make head: QAST_Head
+
+    make name: lexer::Token
+    make generics: lexer::Token[]
+
+    make statements: QAST_Statements
+}
+
+@pub
+make type QAST_Enum {
+    make head: QAST_Head
+
+    make name: lexer::Token
+
+    make variants: lexer::Token[]
+}
+
+@pub
+make type QAST_If {
+    make head: QAST_Head
+
+    make val: owned<QAST_Head>
+
+    make statements: QAST_Statements
+}
+
+@pub
+make type QAST_For {
+    make head: QAST_Head
+
+    make inc: lexer::Token
+    make cond: owned<QAST_Head> // expr
+
+    make statements: QAST_Statements
+}
+
+@pub
+make type QAST_While {
+    make head: QAST_Head
+
+    make cond: owned<QAST_Head> // expr
+
+    make statements: QAST_Statements
 }
 
 @pub
@@ -123,14 +180,6 @@ make type QAST_Param {
 
 }
 
-@pub
-make type QAST_Type {
-    make head: QAST_Head
-
-    make name: lexer::Token
-    make generics: owned<QAST_TypeSig>[]
-
-}
 
 @pub
 make type QAST_Var {
@@ -196,8 +245,21 @@ make type ExprCall {
     make callee: owned<QAST_Head>
     make args: QAST_Arg[]
 
-    make catch_stmts: QAST_Statements
+    make catch_stmts: QAST_Statements?
     make catch_bind: variant<void, lexer::Token>
+}
+
+@pub
+make type QAST_Assign {
+    make head: QAST_Head
+    make target: owned<QAST_Head>
+    make value: owned<QAST_Head>
+}
+
+@pub
+make type QAST_Return {
+    make head: QAST_Head
+    make value: owned<QAST_Head>
 }
 
 @pub

@@ -7,7 +7,6 @@ make e = @import "err.quip"
 
 // ====
 
-
 @pub
 make enum DiagKind {
     Panic,      // Compiler internal error
@@ -63,7 +62,7 @@ make type Diag {
     @pub
     make panic (code: e::Err, msg: str) -> owned<Diag> {
         make d: owned<Diag> = std::heap.alloc(@sizeof Diag).unwrap()
-        d.*.kind = DiagKind.Error
+        d.*.kind = DiagKind.Panic
         d.*.msg = msg
         return d
     }
@@ -81,16 +80,9 @@ make type Diag {
     @pub @this
     make emit () {
         std::io::println(this.msg)
-
-
         return 0
-
-
-
-
     }
 }
-
 
 @pub
 make type Diagnostic {
@@ -99,7 +91,9 @@ make type Diagnostic {
 
     @pub
     make init () -> Diagnostic {
-        return Diagnostic {}
+        return Diagnostic {
+            limit = 10,
+        }
     }
 
     @pub @this
@@ -111,7 +105,6 @@ make type Diagnostic {
         if diag.*.kind == DiagKind.Panic {
             return true
         }
-
 
         return false
     }

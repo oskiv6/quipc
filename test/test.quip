@@ -1,7 +1,20 @@
-@pub @entry
-make main (a: int) {
 
-    make test = 10
-    make test1 = test
+make type Person <T> {
 
+    make field: String
+
+    make func <T> () -> int {}
+
+    if 10 {
+
+    }
+
+    for a : arr {}
+
+    while x {}
+}
+
+make enum PersonKind {
+    Child,
+    Adult,
 }
