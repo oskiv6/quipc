@@ -1,0 +1,18 @@
+make type vect {
+
+    @pub
+    make create () {
+
+
+
+    }
+
+    @pub
+    make push () {}
+
+    @pub
+    make pop () {
+
+
+    }
+}

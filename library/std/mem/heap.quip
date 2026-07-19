@@ -1,0 +1,76 @@
+@pure @const {
+make block: unit = @import "block.quip"
+
+make syscall: unit = @import "../os/syscall.quip"
+}
+
+@pub
+make type Heap {
+    make head: ptr<block::Block>
+    make size: int = 1048576
+
+    @pub
+    make init () -> Heap {
+
+        make h = Heap {
+            head = null
+        }
+
+        @unsafe {
+            // Map anonymous memory
+            make raw_mem: ptr<any> = syscall::quip_map_anon(1048576)
+            make block_ptr: ptr<block::Block> = raw_mem
+
+            block_ptr.*.free = true
+            block_ptr.*.size = 1048576 - (@sizeof block::Block)
+            block_ptr.*.next = null
+
+            h.head = block_ptr
+        }
+
+        return h
+    }
+
+    @pub @this @allocator
+    make alloc (req_size: int) -> !owned<any> {
+        if req_size == 0 {
+            return error.ZeroAllocation
+        }
+
+        @unsafe {
+            make curr: ptr<block::Block> = this.head
+
+            while curr != null {
+                if curr.*.free {
+                    make has_space: bool = curr.*.size > req_size + (@sizeof block::Block)
+                    if has_space {
+                        curr.*.split(req_size + 0)
+                        curr.*.free = false
+                        @unsafe make ptr_res_space: ptr<block::Block> = curr + 1
+                        @unsafe return ptr_res_space
+                    }
+
+                    make fits: bool = curr.*.size >= req_size
+                    if fits {
+                        curr.*.free = false
+                        @unsafe make ptr_res_exact: ptr<block::Block> = curr + 1
+                        @unsafe return ptr_res_exact
+                    }
+                }
+                curr = curr.*.next
+            }
+        }
+
+        return error.OutOfMemory
+    }
+
+    @pub @this @deallocator
+    make free (raw_ptr: owned<any>) -> void {
+        @unsafe {
+            make block_ptr: ptr<block::Block> = raw_ptr
+            make header: ptr<block::Block> = block_ptr - 1
+            header.*.free = true
+            header.*.join()
+        }
+    }
+}

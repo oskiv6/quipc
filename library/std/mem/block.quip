@@ -1,0 +1,42 @@
+@pub
+make type Block {
+
+    make free: bool = true
+    make size: int = 0
+    make next: ptr<Block> = none
+    make is_prev_free: bool = false
+
+    @pub @this
+    make split (new_size: int) {
+        @unsafe {
+            // this + 1 advances past the Block header
+            make data : ptr<Block> = this + 1
+            // cast to ptr<char> to advance by new_size bytes
+            make bytes: ptr<char> = data
+            make next: ptr<char> = bytes + new_size
+
+            // new block header address
+            make new: ptr<Block> = next
+
+            new.*.free = true
+            new.*.size = this.size - new_size
+            new.*.next = this.next
+            this.size = new_size
+            this.next = new
+        }
+    }
+
+    @pub @this
+    make join () {
+        @unsafe {
+            while this.next != null {
+                if this.next.*.free {
+                    this.size = this.size + this.next.*.size + (@sizeof Block)
+                    this.next = this.next.*.next
+                } else {
+                    return
+                }
+            }
+        }
+    }
+}

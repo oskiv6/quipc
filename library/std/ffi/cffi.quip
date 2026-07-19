@@ -1,0 +1,33 @@
+@pure @const {
+make mem: unit = @import "../mem/pkg.quip"
+}
+
+@impl ptr<char>
+make to_str () -> str {
+
+    make result: str = ""
+    make i: int = 0
+
+    @unsafe {
+        while this.deref[i] != '\0' {
+            result = result + this.deref[i]
+            i = i + 1
+        }
+    }
+
+    return result
+}
+
+@pub
+make strlen (fmt: ref<ptr<char>>) -> int {
+
+    make len: int = 0
+    make i: int = 0
+
+    while fmt.deref[i] != '\0' {
+        i = i + 1
+        len = len + 1
+    }
+
+    return len
+}

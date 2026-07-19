@@ -1,0 +1,129 @@
+// the process library
+@pure @const {
+make os: unit = @import "../os/pkg.quip"
+
+make io: unit = @import "../io/pkg.quip"
+
+make to_str: unit = @import "../fmt/pkg.quip"
+}
+
+@pub
+make enum ProcessState {
+    None,
+    Running,
+    Exited,
+    Signaled,
+}
+
+@pub
+make type Command {
+
+    make name: str
+    make args: str[]
+
+    make env: str[] = []
+    make work_dir: str = none
+
+    make fd_in: int = none
+    make fd_out: int = none
+    make fd_err: int = none
+
+    @pub
+    make create (name: str, args: str[]) -> Command {
+        make command: Command = Command {}
+        command.name = name
+        command.args = args
+
+        return command
+    }
+
+    @pub @this
+    make get () -> str {
+
+        make result: str = ""
+
+        result.push(this.name)
+        result = result + " "
+
+
+        for arg : this.args {
+            result.push(arg)
+            result = result + " "
+        }
+
+        return result
+    }
+
+    @pub @this
+    make ensure () -> !void {
+        return
+    }
+}
+
+@pub
+make type Process {
+
+    make command: Command
+
+    make pid: int = none
+
+    make state: ProcessState = ProcessState.None
+
+    make exit_code: int = 0
+    make signal_code: int = 0
+
+    @pub
+    make spawn (command: Command) -> !Process {
+        make pid: int = os::syscall::quip_spawn_process_qp(
+            command.name.pin, command.args.pin,
+            command.fd_in, command.fd_out, command.fd_err)
+
+        if pid < 0 {
+            return error.ProcessSpawnFailed
+        }
+
+        make proc: Process = Process {}
+        proc.pid = pid
+        proc.state = ProcessState.Running
+        proc.command = command
+
+        return proc
+    }
+
+    @pub @this
+    make wait () {
+        make result: int = os::syscall::quip_wait_process(this.pid)
+
+        if result >= 0 {
+            this.state = ProcessState.Exited
+            this.exit_code = result
+        } else {
+            this.state = ProcessState.Signaled
+            this.signal_code = 0 - result
+        }
+    }
+
+    @pub @this
+    make kill () {
+        os::syscall::quip_kill_process(this.pid, 9)
+        this.state = ProcessState.Signaled
+        this.signal_code = 9
+    }
+
+    @pub
+    make run (command: Command) -> int {
+        return os::syscall::quip_run_process_qp(
+            command.name.pin, command.args.pin,
+            command.fd_in, command.fd_out, command.fd_err)
+    }
+}
+
+@pub
+make exit (code: int) -> int {
+    return os::syscall::exit(code)
+}
+
+@pub
+make abort () -> void {
+    os::syscall::quip_abort()
+}

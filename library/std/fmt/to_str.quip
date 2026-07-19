@@ -1,0 +1,117 @@
+@pure @const make mem: unit = @import "../mem/pkg.quip"
+
+@impl int
+make to_str () -> str {
+    make digits: str = ""
+    make result: str = ""
+    make sign: str = ""
+
+    if this == 0 {
+        digits.push('0')
+        return digits
+    }
+
+    make value: int = this
+    make negative: bool = false
+
+    if value < 0 {
+        negative = true
+        value = 0 - value
+    }
+
+    while value > 0 {
+        make d: int = value - (value / 10) * 10
+
+        match d {
+            0 { digits = digits + '0' }
+            1 { digits = digits + '1' }
+            2 { digits = digits + '2' }
+            3 { digits = digits + '3' }
+            4 { digits = digits + '4' }
+            5 { digits = digits + '5' }
+            6 { digits = digits + '6' }
+            7 { digits = digits + '7' }
+            8 { digits = digits + '8' }
+            _ { digits = digits + '9' }
+        }
+
+        value = value / 10
+    }
+
+    make i: int = digits.len() - 1
+
+    while i >= 0 {
+        result = result + digits[i]
+        i = i - 1
+    }
+
+    if negative {
+        sign = sign + '-'
+        return sign + result
+    }
+
+    return result
+}
+
+@impl uint
+make to_str () -> str {
+    make digits: str = ""
+    make result: str = ""
+
+    if this == 0 {
+        digits.push('0')
+        return digits
+    }
+
+    make value: uint = this
+    while value > 0 {
+        make d: uint = value - (value / 10) * 10
+
+        match d {
+            0 { digits = digits + '0' }
+            1 { digits = digits + '1' }
+            2 { digits = digits + '2' }
+            3 { digits = digits + '3' }
+            4 { digits = digits + '4' }
+            5 { digits = digits + '5' }
+            6 { digits = digits + '6' }
+            7 { digits = digits + '7' }
+            8 { digits = digits + '8' }
+            _ { digits = digits + '9' }
+        }
+
+        value = value / 10
+    }
+
+    make i: uint = digits.len() - 1
+
+    while i >= 0 {
+        result = result + digits[i]
+        i = i - 1
+    }
+
+    return result
+}
+
+@impl String
+make to_str() -> str {
+
+    make result: str = ""
+
+    make i: uint = 0
+    while i < this.length {
+        result.push(this[i])
+        i = i + 1
+    }
+
+    return result
+
+}
+
+@impl char
+make to_str() -> str {
+    make result: str = ""
+    result.push(this)
+
+    return result
+}

@@ -1,0 +1,361 @@
+@pure @const {
+make std = @import "../../library/std/pkg.quip"
+
+make qast = @import "../util/qast.quip"
+make util = @import "../util/pkg.quip"
+make lexer = @import "../core/token.quip"
+make qtype = @import "qtype.quip"
+}
+
+make type FlattenHoist {
+    make source_name: str
+    make internal_name: str
+    make scope_id: uint
+    make source_span: util::Span
+    make sig_type: owned<qast::QAST_TypeSig>?
+    make res_type: qtype::QType
+}
+
+make type FlattenCtx {
+    make next_id: uint
+    make next_scope_id: uint
+}
+
+// ====
+
+@pub
+make run (program: owned<qast::QAST_Head>[]) -> void {
+    make ctx = FlattenCtx { next_id = 0, next_scope_id = 1 }
+
+    make i = 0
+    while i < program.len() {
+        make node = program[i].copy()
+
+        @unsafe {
+            if node.*.kind == qast::QAST_Kind.Func {
+                make func: owned<qast::QAST_Func> = node
+                flatten_func(func.pin, ctx.pin)
+                @unsafe program[i] = func
+            } else {
+                program[i] = node
+            }
+        }
+
+        i = i + 1
+    }
+}
+
+make flatten_func (func: ref<owned<qast::QAST_Func>>, ctx: ref<FlattenCtx>) -> void {
+    make hoists: FlattenHoist[] = []
+
+    make sid = ctx.*.next_scope_id
+    ctx.*.next_scope_id = sid + 1
+
+    func.*.*.statements = transform_stmts(func.*.*.statements, 0, ctx, hoists.pin, sid)
+    func.*.*.statements = rebuild_function_buffer(func.*.*.statements, hoists)
+}
+
+make transform_stmts (stmts: qast::QAST_Statements, depth: uint, ctx: ref<FlattenCtx>, hoists: ref<FlattenHoist[]>, scope_id: uint)
+    -> qast::QAST_Statements {
+
+    make out: owned<qast::QAST_Head>[] = []
+
+    make i = 0
+    while i < stmts.buffer.len() {
+        make node = stmts.buffer[i]
+
+        make kind = node.*.kind
+
+        if kind == qast::QAST_Kind.Var {
+            if depth > 0 {
+                @unsafe {
+                    make var: owned<qast::QAST_Var> = node
+
+                    make id = ctx.*.next_id
+                    ctx.*.next_id = id + 1
+                    make source_name = var.*.name.lexeme !
+                    make internal = id.to_str() + source_name
+
+                    make entry = FlattenHoist {
+                        source_name = source_name,
+                        internal_name = internal,
+                        scope_id = scope_id,
+                        source_span = var.*.head.range.start,
+                        sig_type = var.*.sig_type,
+                        res_type = var.*.res_type !,
+                    }
+                    hoists.*.push(entry)
+
+                    out.push(hoist_to_assign(internal, var.*.val, var.*.head.range.start))
+                }
+            } else {
+                out.push(node)
+            }
+
+        } elif kind == qast::QAST_Kind.If {
+            @unsafe {
+                make if_node: owned<qast::QAST_If> = node
+                make sid = ctx.*.next_scope_id
+                ctx.*.next_scope_id = sid + 1
+                if_node.*.statements = transform_stmts(
+                    if_node.*.statements, depth + 1, ctx, hoists, sid)
+                @unsafe out.push(if_node)
+            }
+
+        } elif kind == qast::QAST_Kind.While {
+            @unsafe {
+                make w: owned<qast::QAST_While> = node
+                make sid = ctx.*.next_scope_id
+                ctx.*.next_scope_id = sid + 1
+                w.*.statements = transform_stmts(
+                    w.*.statements, depth + 1, ctx, hoists, sid)
+                @unsafe out.push(w)
+            }
+
+        } elif kind == qast::QAST_Kind.For {
+            @unsafe {
+                make f: owned<qast::QAST_For> = node
+                make sid = ctx.*.next_scope_id
+                ctx.*.next_scope_id = sid + 1
+                f.*.statements = transform_stmts(
+                    f.*.statements, depth + 1, ctx, hoists, sid)
+                @unsafe out.push(f)
+            }
+
+        } else {
+            out.push(node)
+        }
+
+        i = i + 1
+    }
+
+    stmts.buffer = out
+
+    make ri = 0
+    while ri < hoists.*.len() {
+        make h = hoists.*[ri]
+        if h.scope_id == scope_id {
+            stmts = rewrite_stmts(stmts, h.source_name, h.internal_name)
+        }
+        ri = ri + 1
+    }
+
+    return stmts
+}
+
+make hoist_to_assign (target_name: str, val: owned<qast::QAST_Head>?, span: util::Span) -> owned<qast::QAST_Head> {
+    @unsafe {
+        make assign: owned<qast::QAST_Assign> = std::mem::debug.alloc(@sizeof qast::QAST_Assign).unwrap()
+
+        assign.*.head = qast::QAST_Head {
+            range = util::Range { start = span, end = span },
+            kind = qast::QAST_Kind.Assign,
+            status = qast::QAST_Status.Ok,
+            tags = [],
+        }
+
+        make target: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
+        target.*.head = qast::QAST_Head {
+            range = util::Range { start = span !, end = span ! },
+            kind = qast::QAST_Kind.Expr,
+            status = qast::QAST_Status.Ok,
+            tags = [],
+        }
+        target.*.kind = qast::ExprKind.Identifier
+        target.*.literal = lexer::Token.create(target_name, span !, lexer::TokenKind.Identifier)
+
+        @unsafe assign.*.target = target
+
+        match val {
+            none {
+                make zero: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
+                zero.*.head = qast::QAST_Head {
+                    range = util::Range { start = span, end = span},
+                    kind = qast::QAST_Kind.Expr,
+                    status = qast::QAST_Status.Ok,
+                    tags = [],
+                }
+                zero.*.kind = qast::ExprKind.Literal
+                zero.*.literal = lexer::Token.create("0", span, lexer::TokenKind.LiteralNum)
+
+                @unsafe assign.*.value = zero
+            }
+
+            some: owned<qast::QAST_Head> {
+                assign.*.value = some
+            }
+        }
+
+        @unsafe return assign
+    }
+}
+
+make rebuild_function_buffer (stmts: qast::QAST_Statements, hoists: FlattenHoist[]) -> qast::QAST_Statements {
+    make out: owned<qast::QAST_Head>[] = []
+    make rest: owned<qast::QAST_Head>[] = []
+
+    make i = 0
+    while i < stmts.buffer.len() {
+        make node = stmts.buffer[i]
+
+        if node.*.kind == qast::QAST_Kind.Var {
+            @unsafe {
+                make v: owned<qast::QAST_Var> = node
+                if v.*.val == none {
+                    @unsafe out.push(v)
+                } else {
+                    @unsafe rest.push(v)
+                }
+            }
+        } else {
+            rest.push(node)
+        }
+
+        i = i + 1
+    }
+
+    make hi = 0
+    while hi < hoists.len() {
+        make h = hoists[hi]
+        out.push(hoisted_decl(h))
+        hi = hi + 1
+    }
+
+    make ri = 0
+    while ri < rest.len() {
+        out.push(rest[ri].copy())
+        ri = ri + 1
+    }
+
+    stmts.buffer = out
+    return stmts
+}
+
+make hoisted_decl (h: FlattenHoist) -> owned<qast::QAST_Head> {
+    @unsafe {
+        make var: owned<qast::QAST_Var> = std::mem::debug.alloc(@sizeof qast::QAST_Var).unwrap()
+
+        var.*.head = qast::QAST_Head {
+            range = util::Range { start = h.source_span, end = h.source_span },
+            kind = qast::QAST_Kind.Var,
+            status = qast::QAST_Status.Ok,
+            tags = [],
+        }
+        var.*.name = lexer::Token.create(h.internal_name, h.source_span, lexer::TokenKind.Identifier)
+        var.*.sig_type = h.sig_type
+        var.*.res_type = h.res_type !
+        var.*.val = none
+
+        @unsafe return var
+    }
+}
+
+make rewrite_stmts (stmts: qast::QAST_Statements, from: str, to: str) -> qast::QAST_Statements {
+    make out: owned<qast::QAST_Head>[] = []
+
+    make i = 0
+    while i < stmts.buffer.len() {
+        make node = stmts.buffer[i]
+        out.push(rewrite_head(node, from, to))
+        i = i + 1
+    }
+
+    stmts.buffer = out
+    return stmts
+}
+
+make rewrite_head (node: owned<qast::QAST_Head>, from: str, to: str) -> owned<qast::QAST_Head> {
+    make kind = node.*.kind
+
+    @unsafe {
+        if kind == qast::QAST_Kind.Expr {
+            make expr: owned<qast::QAST_Expr> = node
+            @unsafe return rewrite_expr(expr, from, to)
+
+        } elif kind == qast::QAST_Kind.Assign {
+            make a: owned<qast::QAST_Assign> = node
+            a.*.target = rewrite_head(a.*.target, from !, to !)
+            a.*.value = rewrite_head(a.*.value, from !, to !)
+            @unsafe return a
+
+        } elif kind == qast::QAST_Kind.Return {
+            make r: owned<qast::QAST_Return> = node
+            r.*.value = rewrite_head(r.*.value, from, to)
+            @unsafe return r
+
+        } elif kind == qast::QAST_Kind.If {
+            make if_node: owned<qast::QAST_If> = node
+            if_node.*.val = rewrite_head(if_node.*.val, from !, to !)
+            if_node.*.statements = rewrite_stmts(if_node.*.statements, from !, to !)
+            @unsafe return if_node
+
+        } elif kind == qast::QAST_Kind.While {
+            make w: owned<qast::QAST_While> = node
+            w.*.cond = rewrite_head(w.*.cond, from !, to !)
+            w.*.statements = rewrite_stmts(w.*.statements, from !, to !)
+            @unsafe return w
+
+        } elif kind == qast::QAST_Kind.For {
+            make f: owned<qast::QAST_For> = node
+            f.*.cond = rewrite_head(f.*.cond, from !, to !)
+            f.*.statements = rewrite_stmts(f.*.statements, from !, to !)
+            @unsafe return f
+
+        } else {
+            return node
+        }
+    }
+}
+
+make rewrite_expr (expr: owned<qast::QAST_Expr>, from: str, to: str) -> owned<qast::QAST_Expr> {
+    match expr.*.kind {
+        qast::ExprKind.Identifier {
+            if expr.*.literal.lexeme == from {
+                expr.*.literal.lexeme = to !
+            }
+        }
+
+        qast::ExprKind.Binary {
+            expr.*.binary.left = rewrite_head(expr.*.binary.left, from !, to !)
+            expr.*.binary.right = rewrite_head(expr.*.binary.right, from !, to !)
+        }
+
+        qast::ExprKind.Unary {
+            expr.*.unary.operand = rewrite_head(expr.*.unary.operand, from, to)
+        }
+
+        qast::ExprKind.Call {
+            expr.*.call.callee = rewrite_head(expr.*.call.callee, from !, to !)
+            make new_args: qast::QAST_Arg[] = []
+            make ai = 0
+            while ai < expr.*.call.args.len() {
+                make arg = expr.*.call.args[ai]
+                arg.val = rewrite_head(arg.val, from !, to !)
+                new_args.push(arg)
+                ai = ai + 1
+            }
+            expr.*.call.args = new_args
+        }
+
+        qast::ExprKind.Access {
+            expr.*.access.left = rewrite_head(expr.*.access.left, from !, to !)
+            if expr.*.access.is_array {
+                expr.*.access.right = rewrite_head(expr.*.access.right, from !, to !)
+            }
+        }
+
+        qast::ExprKind.Constructor {
+            make new_fields: owned<qast::QAST_Head>[] = []
+            make fi = 0
+            while fi < expr.*.constructor.fields.len() {
+                new_fields.push(rewrite_head(expr.*.constructor.fields[fi], from, to))
+                fi = fi + 1
+            }
+            expr.*.constructor.fields = new_fields
+        }
+
+        _ {}
+    }
+
+    return expr
+}

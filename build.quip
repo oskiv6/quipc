@@ -1,5 +1,5 @@
 @pure @const {
-make std = @import "stdlib.quip"
+make std = @import "./library/std/pkg.quip"
 }
 
 @pub @entry
@@ -10,13 +10,20 @@ make main () {
     make b = std::Build.default()
 
     make exe = std::Executable.default()
+
+    // test of package alias, not working yet
+    // make pkg = std::Package.create("std", "./library/std/pkg.quip")
+    // exe.add_package(pkg)
+
     make path = std::io::Path.create("bootstrap/")
     exe.path_build = path
     exe.name = "quipc"
 
     b.executables.push(exe)
 
-    b.proceed().unwrap()
+    b.proceed() catch {
+        std::io::println("unable to build the compiler")
+    }
 
     return 0
 }

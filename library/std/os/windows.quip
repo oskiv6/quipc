@@ -1,0 +1,60 @@
+@pub
+make open(path: str) -> int {
+    return -1
+}
+
+@pub
+make read(fd: int, buffer: ptr<char>, size: int) -> int {
+    return -1
+}
+
+@pub
+make write(fd: int, buffer: ptr<any>, size: int) -> int {
+    return -1
+}
+
+@pub
+make close(fd: int) -> int {
+    return -1
+}
+
+@pub
+make fstat(fd: int) -> int {
+    return -1
+}
+
+@pub
+make pipe(fds: ptr<int>) -> int {
+    return -1
+}
+
+@pub
+make dup2(oldfd: int, newfd: int) -> int {
+    return -1
+}
+
+@pub
+make fork() -> int {
+    return -1
+}
+
+@pub
+make execve(path: str, argv: ptr<ptr<char>>, envp: ptr<ptr<char>>) -> int {
+    return -1
+}
+
+@pub
+make waitpid(pid: int, status: ptr<int>, options: int) -> int {
+    return -1
+}
+
+@pub
+make kill(pid: int, sig: int) -> int {
+    return -1
+}
+
+@pub
+make exit(code: int) -> int {
+    return -1
+}
+

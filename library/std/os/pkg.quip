@@ -1,0 +1,35 @@
+@pure @const {
+
+make heap: unit = @import "../mem/pkg.quip"
+
+}
+
+@pub @pure @const {
+
+make syscall: unit = @import "syscall.quip"
+
+}
+
+
+@pub
+make getcwd() -> str {
+
+    @target "macos" { make nr = 298 }
+    @target "linux" { make nr = 79 }
+
+    make size = 4096
+    @unsafe {
+
+        make raw = heap::debug.alloc(size !).unwrap()
+        make buf: ptr<char> = raw
+        make ret = __syscall(nr, buf, size)
+
+        make result: str = ""
+        result.data = buf
+        result.length = ret
+        result.capacity = ret
+
+        return result
+
+    }
+}

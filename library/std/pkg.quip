@@ -1,0 +1,259 @@
+@pub @pure @const {
+
+make io: unit = @import "./io/pkg.quip"
+make os: unit = @import "./os/pkg.quip"
+make mem: unit = @import "./mem/pkg.quip"
+make process: unit = @import "./process/pkg.quip"
+
+}
+
+// BUILD
+
+@pub
+make type Options {
+
+    make show_quipc_debug: bool
+    make show_memory_dump: bool
+    make show_warnings: bool
+
+    @pub
+    make default () -> Options {
+        return Options {
+            show_quipc_debug = false,
+            show_memory_dump = false,
+            show_warnings = true,
+        }
+    }
+}
+
+@pub
+make enum Mode {
+    Release,
+    Debug,
+}
+
+@pub
+make enum Platform {
+    Native,
+    Macos,
+    Linux,
+    Windows,
+}
+
+@pub
+make enum Optimization {
+    None,
+    Standard,
+    Aggressive,
+    Size,
+    Memory,
+}
+
+@pub @copy
+make type Package {
+    make name: str
+    make version: str
+
+    make path: io::Path
+
+    @pub
+    make create (name: str, path: str) -> Package {
+        return Package {
+            name = name,
+            path = io::Path.create(path)
+        }
+    }
+}
+
+@pub
+make type Executable {
+    make name: str
+    make path_build: io::Path
+    make platform: Platform
+    make optimization: Optimization
+    make packages: Package[]?
+
+    @pub
+    make default () -> Executable {
+        return Executable {
+            name = "out",
+            path_build = io::Path.create("debug/"),
+            platform = Platform.Native,
+            optimization = Optimization.None,
+        }
+    }
+
+    @pub @this
+    make add_package (pkg: Package) -> void {
+        match this.packages {
+            none {
+                make arr: Package[] = []
+                arr.push(pkg)
+                this.packages = arr
+            }
+
+            some: Package[] { some.push(pkg) }
+        }
+    }
+
+    @pub
+    make nothing () {
+        return
+    }
+}
+
+@pub
+make type Build {
+
+    make entry_file: io::Path
+    make entry_point: str
+
+    make options: Options
+    make mode: Mode
+
+    make args: str[]
+
+    make executables: Executable[]
+
+    @pub
+    make default () -> Build {
+        return Build {
+            entry_file = io::Path.create("src/main.quip"),
+            entry_point = "main",
+            options = Options.default(),
+            mode = Mode.Debug,
+        }
+    }
+
+    @pub @this
+    make proceed () -> !int[] {
+        make result: int[] = []
+
+        if this.executables == none {
+            io::println("no executables to build")
+            return error.NoExecutables
+        }
+
+
+        @target "macos" {
+            make compiler_path: str = "/usr/local/bin/quipc"
+        }
+
+        @target "linux" {
+            make compiler_path: str = "/usr/bin/quipc"
+        }
+
+        @target "windows" {
+            make compiler_path: str = "c:\Program Files\quipc\quipc.exe"
+        }
+
+        @weak {}
+
+        for exe : this.executables.iter() {
+
+            this.construct_args(exe)
+
+            make command = process::Command.create(compiler_path, this.args)
+            make t: str = command.get()
+            io::println(t)
+
+            result.push(process::Process.run(command))
+        }
+
+        return result
+    }
+
+    @pub @this
+    make construct_args (exe: Executable) {
+
+        // make args = this.args
+
+        match exe.packages {
+            none {}
+            some: Package[] {
+                for pkg : some.iter() {
+                    this.args.push("--package")
+                    this.args.push(pkg.name)
+                    this.args.push(pkg.path.get())
+                }
+            }
+        }
+
+        match exe.optimization {
+            Optimization.Standard { this.args.push("-O2") }
+            Optimization.Aggressive { this.args.push("-O3") }
+            // Optimization.Size { this.args.push("-Os") }
+            // Optimization.Memory { this.args.push("-Oz") }
+            _ {}
+        }
+
+        match this.mode {
+            Mode.Debug { this.args.push("-g") }
+            _ {}
+        }
+
+        // -o path/to/executable
+        this.args.push("-o")
+        this.args.push(exe.path_build.get() + io::Path.delimeter + exe.name)
+
+        // this.args.push("--entry-point=")
+        // this.args.push(""" + this.entry_point + """)
+
+        this.args.push("compile")
+        this.args.push(this.entry_file.get())
+    }
+
+    @pub @this
+    make add_executable (exe: Executable) {
+        this.executables.push(exe)
+    }
+
+    @pub @this
+    make checkout () { // show the current Build status in the terminal
+        io::println("==== BUILD ====")
+
+        io::println(this.entry_file.get())
+        io::println(this.entry_point)
+        // io::println(options.get())
+        // io::println(mode.get())
+        io::println("")
+
+        for exe : this.executables.iter() {
+            io::println("----")
+            io::println(exe.name)
+            io::println(exe.path_build.get())
+            // io::println(exe.platform.get())
+            // io::println(exe.optimization.get())
+            io::println("")
+        }
+
+        io::println("===============")
+    }
+}
+
+// ====
+
+@impl char
+make is_space () -> bool {
+    make c = this.deref
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+@impl char
+make is_alpha () -> bool {
+    make c = this.deref
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+@impl char
+make is_alnum () -> bool {
+    make c = this.deref
+    return this.is_alpha() || (c >= '0' && c <= '9')
+}
+
+@impl char
+make is_digit () -> bool {
+    make c = this.deref
+
+    return c >= '0' && c <= '9'
+}

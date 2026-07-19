@@ -1,0 +1,9 @@
+@pure @const {
+make heap: unit = @import "./heap.quip"
+}
+
+@pub @const {
+
+make debug: heap::Heap = heap::Heap.init()
+
+}

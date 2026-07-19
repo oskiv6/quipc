@@ -1,2 +1,20 @@
-// testing the bootstrap compiler
-make name = 10
+
+make type Person {
+
+    make field: String
+
+    make func () -> int {}
+
+    if 10 {
+
+    }
+
+    for a : arr {}
+
+    while x {}
+}
+
+make enum PersonKind {
+    Child,
+    Adult,
+}
