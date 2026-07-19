@@ -46,7 +46,14 @@ Development is currently focused on stabilizing the C reference compiler's parsi
 
 ## Usage and Releases
 
-The release comes with standard library files and precompiled binaries for Linux and MacOS.
+Use `install.sh` to download and install Quip compiler for your machine
+```sh
+curl -fsSL https://raw.githubusercontent.com/oskiv6/quipc/main/install.sh | sh
+```
+
+Currently supported platforms:
+- Linux x86_64/aarch64
+- MacOS arm64
 
 > **Note** The compiler may still contain memory leaks, bugs and incomplete features
 
@@ -59,14 +66,13 @@ Use `quipc -h` to get more information, some options may not work yet.
 
 ### Standard Library Configuration
 
-Currently Quip runtime library path is hardcoded as /usr/local/lib/quip/libq.o
-please, compile the libq.c using your system's C compiler and install it into /usr/local/lib/quip/libq.o
-
 The compiler expects the stdlib to be located in /usr/local/lib/quip/. Alternatively, you can specify a custom path directly in your code:
 
 ```quip 
 @pure @const make std = @import "path/to/unit.quip"
 ```
+
+> **Note** I'm trying to solve a problem related to the standard library using the `install.sh` script, which, in a future release, will download the library to the `~/.quip/lib/` directory. The compiler will expect the library files to be located there.
 
 ## Building the project
 
