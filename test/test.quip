@@ -1,9 +1,9 @@
 
-make type Person <T> {
+make type Person {
 
     make field: String
 
-    make func <T> () -> int {}
+    make func () -> int {}
 
     if 10 {
 

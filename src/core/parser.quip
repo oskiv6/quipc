@@ -1,5 +1,5 @@
 @pure @const {
-make std = @import "stdlib.quip"
+make std = @import "../../library/std/pkg.quip"
 
 make lexer = @import "token.quip"
 make qast = @import "../util/qast.quip"
@@ -84,7 +84,7 @@ make type Parser {
     make parse_tag (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
         this.advance()
 
-        make node: owned<qast::QAST_Tag> = std::heap.alloc(@sizeof qast::QAST_Tag).unwrap()
+        make node: owned<qast::QAST_Tag> = std::mem::debug.alloc(@sizeof qast::QAST_Tag).unwrap()
         node.*.head.kind = qast::QAST_Kind.Tag
         node.*.head.range.unit = ctx
         node.*.head.range.start = this.current().*.span
@@ -114,19 +114,19 @@ make type Parser {
     make parse_make (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
         this.advance()
 
-        make node: owned<qast::QAST_Head> = std::heap.alloc(@sizeof qast::QAST_Head).unwrap()
+        make node: owned<qast::QAST_Head> = std::mem::debug.alloc(@sizeof qast::QAST_Head).unwrap()
         node.*.status = qast::QAST_Status.Error
 
         match this.current().*.kind {
             lexer::TokenKind.Identifier {
 
                 if this.next().*.kind == lexer::TokenKind.LParen || this.next().*.kind == lexer::TokenKind.Less {
-                    std::heap.free(node)
+                    std::mem::debug.free(node)
                     node = this.parse_func(ctx)
                     return node
 
                 } else {
-                    std::heap.free(node)
+                    std::mem::debug.free(node)
                     node = this.parse_var(ctx)
                     return node
                 }
@@ -134,14 +134,14 @@ make type Parser {
 
             lexer::TokenKind.KeyType {
                 this.advance()
-                std::heap.free(node)
+                std::mem::debug.free(node)
                 node = this.parse_type(ctx)
                 return node
             }
 
             lexer::TokenKind.KeyEnum {
                 this.advance()
-                std::heap.free(node)
+                std::mem::debug.free(node)
                 node = this.parse_enum(ctx)
                 return node
             }
@@ -161,7 +161,7 @@ make type Parser {
 
     @this
     make parse_func (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
-        make node: owned<qast::QAST_Func> = std::heap.alloc(@sizeof qast::QAST_Func).unwrap()
+        make node: owned<qast::QAST_Func> = std::mem::debug.alloc(@sizeof qast::QAST_Func).unwrap()
         node.*.head.kind = qast::QAST_Kind.Func
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -207,7 +207,7 @@ make type Parser {
 
     @this
     make parse_var (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
-        make node: owned<qast::QAST_Var> = std::heap.alloc(@sizeof qast::QAST_Var).unwrap()
+        make node: owned<qast::QAST_Var> = std::mem::debug.alloc(@sizeof qast::QAST_Var).unwrap()
         node.*.head.kind = qast::QAST_Kind.Var
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -265,7 +265,7 @@ make type Parser {
 
     @this
     make parse_type (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
-        make node: owned<qast::QAST_Type> = std::heap.alloc(@sizeof qast::QAST_Type).unwrap()
+        make node: owned<qast::QAST_Type> = std::mem::debug.alloc(@sizeof qast::QAST_Type).unwrap()
         node.*.head.kind = qast::QAST_Kind.Type
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -306,7 +306,7 @@ make type Parser {
 
     @this
     make parse_enum (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
-        make node: owned<qast::QAST_Enum> = std::heap.alloc(@sizeof qast::QAST_Enum).unwrap()
+        make node: owned<qast::QAST_Enum> = std::mem::debug.alloc(@sizeof qast::QAST_Enum).unwrap()
         node.*.head.kind = qast::QAST_Kind.Enum
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -332,7 +332,7 @@ make type Parser {
     make parse_if (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
         this.advance()
 
-        make node: owned<qast::QAST_If> = std::heap.alloc(@sizeof qast::QAST_If).unwrap()
+        make node: owned<qast::QAST_If> = std::mem::debug.alloc(@sizeof qast::QAST_If).unwrap()
         node.*.head.kind = qast::QAST_Kind.If
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -357,7 +357,7 @@ make type Parser {
     make parse_for (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
         this.advance()
 
-        make node: owned<qast::QAST_For> = std::heap.alloc(@sizeof qast::QAST_For).unwrap()
+        make node: owned<qast::QAST_For> = std::mem::debug.alloc(@sizeof qast::QAST_For).unwrap()
         node.*.head.kind = qast::QAST_Kind.For
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -386,7 +386,7 @@ make type Parser {
     make parse_while (ctx: ptr<um::Unit>) -> owned<qast::QAST_Head> {
         this.advance()
 
-        make node: owned<qast::QAST_While> = std::heap.alloc(@sizeof qast::QAST_While).unwrap()
+        make node: owned<qast::QAST_While> = std::mem::debug.alloc(@sizeof qast::QAST_While).unwrap()
         node.*.head.kind = qast::QAST_Kind.While
         node.*.head.status = qast::QAST_Status.Ok
         node.*.head.range.start = this.current().*.span
@@ -409,7 +409,7 @@ make type Parser {
 
     @this
     make parse_type_signature (ctx: ptr<um::Unit>) -> owned<qast::QAST_TypeSig>? {
-        make sig: owned<qast::QAST_TypeSig> = std::heap.alloc(@sizeof qast::QAST_TypeSig).unwrap()
+        make sig: owned<qast::QAST_TypeSig> = std::mem::debug.alloc(@sizeof qast::QAST_TypeSig).unwrap()
         sig.*.range.start = this.current().*.span
 
         if this.current().*.kind == lexer::TokenKind.Not {
@@ -680,7 +680,7 @@ make type Parser {
                 }
             }
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -720,7 +720,7 @@ make type Parser {
                 }
             }
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -745,7 +745,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_bitwise_or(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -770,7 +770,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_bitwise_or(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -795,7 +795,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_bitwise_or(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -820,7 +820,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_equality(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -845,7 +845,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_comparison(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -872,7 +872,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_shift(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -897,7 +897,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_ternary(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -922,7 +922,7 @@ make type Parser {
 
             make right: owned<qast::QAST_Head> = this.parse_factor(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -946,7 +946,7 @@ make type Parser {
             this.advance()
             make right: owned<qast::QAST_Head> = this.parse_unary(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -973,7 +973,7 @@ make type Parser {
 
             make right = this.parse_postfix(ctx)
 
-            make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             expr.*.head.kind = qast::QAST_Kind.Expr
             expr.*.head.status = qast::QAST_Status.Ok
 
@@ -1008,7 +1008,7 @@ make type Parser {
                     return left
                 }
 
-                make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+                make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
                 expr.*.head.status = qast::QAST_Status.Ok
                 expr.*.head.kind = qast::QAST_Kind.Expr
                 expr.*.kind = qast::ExprKind.Access
@@ -1047,7 +1047,7 @@ make type Parser {
                     catch_stmts = this.parse_statements(ctx)
                 }
 
-                make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+                make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
                 expr.*.head.status = qast::QAST_Status.Ok
                 expr.*.head.kind = qast::QAST_Kind.Expr
                 expr.*.kind = qast::ExprKind.Call
@@ -1071,7 +1071,7 @@ make type Parser {
         || this.current().*.kind == lexer::TokenKind.LiteralChar || this.current().*.kind == lexer::TokenKind.KeyTrue
         || this.current().*.kind == lexer::TokenKind.KeyFalse || this.current().*.kind == lexer::TokenKind.KeyNone {
 
-            make e: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make e: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             e.*.head.status = qast::QAST_Status.Ok
             e.*.head.kind = qast::QAST_Kind.Expr
 
@@ -1086,7 +1086,7 @@ make type Parser {
         if this.current().*.kind == lexer::TokenKind.Identifier || this.current().*.kind == lexer::TokenKind.KeyError {
 
             if this.is_type_constructor(ctx) {
-                make e: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+                make e: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
                 e.*.head.status = qast::QAST_Status.Ok
                 e.*.head.kind = qast::QAST_Kind.Expr
 
@@ -1122,7 +1122,7 @@ make type Parser {
 
         // handle identifier as fallback (not a constructor)
         if this.current().*.kind == lexer::TokenKind.Identifier || this.current().*.kind == lexer::TokenKind.KeyError {
-            make e: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+            make e: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
             e.*.head.status = qast::QAST_Status.Ok
             e.*.head.kind = qast::QAST_Kind.Expr
             e.*.kind = qast::ExprKind.Identifier
@@ -1131,7 +1131,7 @@ make type Parser {
             @unsafe return e
         }
 
-        make expr: owned<qast::QAST_Expr> = std::heap.alloc(@sizeof qast::QAST_Expr).unwrap()
+        make expr: owned<qast::QAST_Expr> = std::mem::debug.alloc(@sizeof qast::QAST_Expr).unwrap()
         expr.*.head.kind = qast::QAST_Kind.Expr
         expr.*.head.status = qast::QAST_Status.Error
 
@@ -1216,12 +1216,12 @@ make type Parser {
 @pub
 make debug_display (p: owned<qast::QAST_Head>[]) -> void {
     std::io::println("=== AST Tree ===")
-    make i = 0
-    while i < p.len() {
-        _print_node(p[i], 0)
-        i = i + 1
+    for node : p.iter() {
+        _print_node(node, 0)
     }
 }
+
+
 
 make _print_node (node: owned<qast::QAST_Head>, depth: int) -> void {
     @unsafe {

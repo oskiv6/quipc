@@ -1,0 +1,11 @@
+@pure @const {
+make std: unit = @import "../pkg.quip"
+
+// make sys: unit = @import ""
+}
+
+
+@pub
+make type Thread {
+
+}

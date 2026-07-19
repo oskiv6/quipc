@@ -1,0 +1,124 @@
+@pub
+make open(path: str) -> int {
+    @target "linux" {
+        return __syscall(2, path.data, 0, 0)
+    }
+    @target "macos" {
+        return __syscall(5, path.data, 0, 0)
+    }
+}
+
+@pub
+make read(fd: int, buffer: ptr<char>, size: int) -> int {
+    @target "linux" {
+        return __syscall(0, fd, buffer, size)
+    }
+    @target "macos" {
+        return __syscall(3, fd, buffer, size)
+    }
+}
+
+@pub
+make write(fd: int, buffer: ptr<any>, size: int) -> int {
+    @target "linux" {
+        return __syscall(1, fd, buffer, size)
+    }
+    @target "macos" {
+        return __syscall(4, fd, buffer, size)
+    }
+}
+
+@pub
+make close(fd: int) -> int {
+    @target "linux" {
+        return __syscall(3, fd, 0, 0)
+    }
+    @target "macos" {
+        return __syscall(6, fd, 0, 0)
+    }
+}
+
+@external make quip_sys_fstat(fd: int) -> int
+
+@pub
+make fstat(fd: int) -> int {
+    @target "linux" {
+        return quip_sys_fstat(fd !)
+    }
+    @target "macos" {
+        return quip_sys_fstat(fd !)
+    }
+}
+
+@external make quip_sys_pipe(fds: ptr<int>) -> int
+
+@pub
+make pipe(fds: ptr<int>) -> int {
+    @target "linux" {
+        return quip_sys_pipe(fds)
+    }
+    @target "macos" {
+        return quip_sys_pipe(fds)
+    }
+}
+
+@pub
+make dup2(oldfd: int, newfd: int) -> int {
+    @target "linux" {
+        return __syscall(33, oldfd, newfd)
+    }
+    @target "macos" {
+        return __syscall(90, oldfd, newfd)
+    }
+}
+
+@pub
+make fork() -> int {
+    @target "linux" {
+        return __syscall(57)
+    }
+
+    @target "macos" {
+        return __syscall(2)
+    }
+}
+
+@pub
+make execve(path: str, argv: ptr<ptr<char>>, envp: ptr<ptr<char>>) -> int {
+    @target "linux" {
+        return __syscall(59, path.data, argv, envp)
+    }
+    @target "macos" {
+        return __syscall(59, path.data, argv, envp)
+    }
+}
+
+@pub
+make waitpid(pid: int, status: ref<int>, options: int) -> int {
+    @target "linux" {
+        return __syscall(61, pid, status, options, 0)
+    }
+    @target "macos" {
+        return __syscall(7, pid, status, options, 0)
+    }
+}
+
+@pub
+make kill(pid: int, sig: int) -> int {
+    @target "linux" {
+        return __syscall(62, pid, sig)
+    }
+    @target "macos" {
+        return __syscall(37, pid, sig)
+    }
+}
+
+@pub
+make exit(code: int) -> int {
+    @target "linux" {
+        return __syscall(60, code)
+    }
+    @target "macos" {
+        return __syscall(1, code)
+    }
+}

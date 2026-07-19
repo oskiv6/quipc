@@ -1,0 +1,85 @@
+@pub @pure @const make posix = @import "./posix.quip"
+@pub @pure @const make windows = @import "./windows.quip"
+
+@pub
+make open(path: str) -> int {
+    return posix::open(path)
+}
+
+@pub
+make read(fd: int, buffer: ptr<char>, size: int) -> int {
+    return posix::read(fd, buffer, size)
+}
+
+@pub
+make write(fd: int, buffer: ptr<any>, size: int) -> int {
+    return posix::write(fd, buffer, size)
+}
+
+@pub
+make close(fd: int) -> int {
+    return posix::close(fd)
+}
+
+@pub
+make fstat(fd: int) -> int {
+    return posix::fstat(fd !)
+}
+
+@pub
+make pipe(fds: ptr<int>) -> int {
+    return posix::pipe(fds)
+}
+
+@pub
+make dup2(oldfd: int, newfd: int) -> int {
+    return posix::dup2(oldfd, newfd)
+}
+
+@pub
+make fork() -> int {
+    return posix::fork()
+}
+
+@pub
+make execve(path: str, argv: ptr<ptr<char>>, envp: ptr<ptr<char>>) -> int {
+    return posix::execve(path, argv, envp)
+}
+
+@pub
+make waitpid(pid: int, status: ref<int>, options: int) -> int {
+    return posix::waitpid(pid, status, options)
+}
+
+@pub
+make kill(pid: int, sig: int) -> int {
+    return posix::kill(pid, sig)
+}
+
+@pub
+make exit(code: int) -> int {
+    return posix::exit(code)
+}
+
+@pub @external make quip_abort() -> void
+
+@pub
+make quip_page_size() -> int {
+    return 4096
+}
+
+
+
+@pub @external make quip_map_anon(size: int) -> ptr<u8>
+
+@pub @external make quip_unmap(addr: ptr<u8>, size: int) -> int
+
+@pub @external make quip_file_read_fd(fd: int, content: ref<str>) -> int
+
+@pub @external make quip_spawn_process_qp(path: ref<str>, args: ref<str[]>, stdin_fd: int, stdout_fd: int, stderr_fd: int) -> int
+
+@pub @external make quip_run_process_qp(path: ref<str>, args: ref<str[]>, stdin_fd: int, stdout_fd: int, stderr_fd: int) -> int
+
+@pub @external make quip_wait_process(pid: int) -> int
+
+@pub @external make quip_kill_process(pid: int, sig: int) -> int

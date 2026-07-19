@@ -1,6 +1,6 @@
 @pure @const {
-make std = @import "stdlib.quip"
-make ffi = @import "cffi.quip"
+make std = @import "../../library/std/pkg.quip"
+make cffi = @import "../../library/std/ffi/cffi.quip"
 }
 
 // ====
@@ -26,6 +26,9 @@ make type Config {
     make mode: std::Mode
     make platform: std::Platform
 
+    make package_names: str[]
+    make package_paths: std::io::Path[]
+
     @pub
     make init () -> Config {
         make config = Config {}
@@ -36,6 +39,8 @@ make type Config {
         config.mode = std::Mode.Debug
         config.platform = std::Platform.Native
 
+        config.package_names = []
+        config.package_paths = []
 
 
         // Config.parse(argv, config.pin)
@@ -111,6 +116,23 @@ make type Config {
                         none {
                             return error.InvalidArgument
                         }
+                    }
+                }
+
+                "--package" {
+                    match iter.next() {
+                        name: ptr<char> {
+                            make name_str = name.to_str()
+                            match iter.next() {
+                                path: ptr<char> {
+                                    make path_str = path.to_str()
+                                    this.package_names.push(name_str)
+                                    this.package_paths.push(std::io::Path.create(path_str))
+                                }
+                                none { return error.InvalidArgument }
+                            }
+                        }
+                        none { return error.InvalidArgument }
                     }
                 }
 

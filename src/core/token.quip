@@ -1,5 +1,5 @@
 @pure @const {
-make std = @import "stdlib.quip"
+make std = @import "../../library/std/pkg.quip"
 make util = @import "../util/pkg.quip"
 }
 

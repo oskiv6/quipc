@@ -1,0 +1,242 @@
+@pure @const {
+make fmt: unit = @import "../fmt/pkg.quip"
+
+make os: unit = @import "../os/pkg.quip"
+make ffi: unit = @import "../ffi/cffi.quip"
+
+}
+
+
+// ====
+
+@pub @const {
+make STDIN: int = 0
+make STDOUT: int = 1
+make STDERR: int = 2
+}
+
+// alias
+// make PrintTypes: Type = variant<String, str, ptr<char>, int, uint, i8, i16, i32, i64, u8, u16, u32, u64, float, f32, f64>
+
+// ====
+
+@pub
+make println (fmt: variant<String, str, ptr<char>>) -> void {
+
+    make nl: String = "\n"
+    make bad_fmt: String = "unsupported format Type\n"
+
+    match fmt {
+
+        a: String {
+            os::syscall::write(STDOUT, a.data, a.length)
+        }
+
+        b: str {
+            os::syscall::write(STDOUT, b.data, b.len())
+        }
+
+        c: ptr<char> {
+            make len = ffi::strlen(c.pin)
+            os::syscall::write(STDOUT, c, len)
+        }
+
+        _ {
+            os::syscall::write(STDOUT, bad_fmt.data, bad_fmt.length)
+            return
+        }
+    }
+
+    os::syscall::write(STDOUT, nl.data, 1)
+}
+
+
+@pub
+make print (fmt: variant<String, str, ptr<char>>) -> void {
+    make bad_fmt: String = "unsupported format Type\n"
+
+    match fmt {
+
+        a: String {
+            os::syscall::write(STDOUT, a.data, a.length)
+        }
+
+        b: str {
+            os::syscall::write(STDOUT, b.data, b.len())
+        }
+
+        c: ptr<char> {
+            make len = ffi::strlen(c.pin)
+            os::syscall::write(STDOUT, c, len)
+        }
+
+        _ {
+            os::syscall::write(STDOUT, bad_fmt.data, bad_fmt.length)
+            return
+        }
+    }
+}
+
+@pub
+make split (buffer: variant<String, str, ptr<char>>, c: char) -> str[] {
+    make s: str = match buffer {
+
+        x: str => x
+        y: String => y.to_str()
+        z: ptr<char> => z.to_str()
+        _ {
+            println("unsupported format Type")
+        } => ""
+
+    }
+
+    make result: str[] = []
+    make current: str = ""
+    make i: int = 0
+
+    while i < s.len() {
+        if s[i] == c {
+            if current.len() > 0 {
+                result.push(current + "")
+                current = ""
+            }
+        } else {
+            current = current + s[i]
+        }
+        i = i + 1
+    }
+
+    if current.len() > 0 {
+        result.push(current + "")
+    }
+
+    return result
+}
+
+
+// ====
+
+@pub
+make type Path {
+
+    make content: str[]
+
+    make is_absolute: bool
+
+    @weak
+    make delimeter: char = '/'
+
+    @target "macos" {
+        @const make delimeter: char = '/'
+    }
+
+    @pub
+    make create (buffer: variant<String, str, ptr<char>>) -> Path {
+        make path = Path {}
+
+        match buffer {
+            a: String {
+                path.is_absolute = a.len() > 0 && a[0] == path.delimeter
+            }
+
+            b: str {
+                path.is_absolute = b.len() > 0 && b[0] == path.delimeter
+            }
+
+            c: ptr<char> {
+                make t = c.to_str()
+                path.is_absolute = t.len() > 0 && t[0] == path.delimeter
+            }
+        }
+
+        path.content = split(buffer, path.delimeter)
+        return path
+    }
+
+    @pub @this
+    make get () -> str {
+        make path: str = ""
+        if this.is_absolute {
+            path = path + this.delimeter
+        }
+        make i: int = 0
+        while i < this.content.len() {
+            path = path + this.content[i]
+            if i < this.content.len() - 1 {
+                path = path + this.delimeter
+            }
+            i = i + 1
+        }
+
+        return path
+    }
+
+    @pub @this
+    make absolute () -> Path {
+        if this.is_absolute {
+            return Path {
+                content = this.content,
+                is_absolute = true,
+            }
+        }
+
+        make t = os::getcwd()
+        make cwd = Path.create(t)
+        make result = Path {}
+
+        for i : cwd.content.iter() {
+            result.content.push(i)
+        }
+
+        for j : this.content.iter() {
+            result.content.push(j)
+        }
+
+        return result
+    }
+}
+
+@impl String
+make to_path () -> Path {
+    // println(this)
+    return Path.create(this.deref)
+}
+
+
+// ====
+
+@pub
+make type File {
+
+    @pub make path_abs: Path
+    @pub make fd: int
+    @pub make content: str
+
+    @pub
+    make open (path: Path) -> !File {
+        make file: File = File {}
+
+        // println(path.get())
+
+        file.fd = os::syscall::open(path.get())
+        // file.path_abs = path.absolute()
+
+        if file.fd < 0 {
+            return error.IOError
+        }
+
+        return file
+    }
+
+    @pub @this
+    make close () {
+        os::syscall::close(this.fd)
+    }
+
+    @pub @this
+    make read () -> !void {
+        if os::syscall::quip_file_read_fd(this.fd, this.content.pin) < 0 {
+            return error.FaileToRead
+        }
+    }
+}

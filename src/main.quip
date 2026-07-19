@@ -1,5 +1,5 @@
 @pure @const {
-make std = @import "stdlib.quip"
+make std = @import "../library/std/pkg.quip"
 make core = @import "core/pkg.quip"
 }
 
@@ -23,7 +23,7 @@ make main (argc: int, argv: ptr<char>[]) -> int {
             driver.compile() catch err {
                 match err {
                     error.FileNotFound {
-                        std::io::println("unable to find 'build.quip' build script")
+                        std::io::println("unable to find: ".to_str() + driver.config.input.get())
                         return 1
                     }
 

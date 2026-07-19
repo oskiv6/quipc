@@ -1,9 +1,11 @@
 @pure @const {
-make util = @import "pkg.quip"
+make util = @import "./pkg.quip"
 make lexer = @import "../core/token.quip"
 
 make qtype = @import "../semantics/qtype.quip"
 make symbol = @import "../semantics/symbol.quip"
+
+make std = @import "../../library/std/pkg.quip"
 }
 
 // ====
@@ -50,6 +52,24 @@ make type QAST_Head {
     make kind: QAST_Kind
     make status: QAST_Status
     make tags: owned<QAST_Head>[]
+
+    @pub @this
+    make copy () -> owned<QAST_Head> {
+
+        match this.kind {
+
+            QAST_Kind.Tag {
+                @unsafe make node: ptr<QAST_Tag> = this
+
+                make new: owned<QAST_Tag> = std::mem::debug.alloc(@sizeof QAST_Tag).unwrap()
+
+                new.* = node.*.copy()
+
+                @unsafe return new
+            }
+        }
+    }
+
 }
 
 @pub
@@ -74,6 +94,15 @@ make type QAST_Tag {
 
     make val: owned<QAST_Head>?
     make sig_type: owned<QAST_TypeSig>?
+
+    @pub @this @copy
+    make copy () -> QAST_Tag {
+        make c = QAST_Tag {}
+
+
+
+        return c
+    }
 }
 
 @pub

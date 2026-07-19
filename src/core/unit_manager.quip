@@ -7,16 +7,18 @@
 // The UnitManager is responsible for managing already imported files and mark the main file
 
 @pure @const {
-make std = @import "stdlib.quip"
+make std = @import "../../library/std/pkg.quip"
+
 make lexer = @import "token.quip"
 make parser = @import "parser.quip"
+make qast = @import "../util/qast.quip"
 
 make diags = @import "../diag/diagnosis.quip"
 
 make linemap = @import "../core/sourcemap.quip"
 
 // the flattening is not working now, may giev compile errors
-// make flattening = @import "../semantics/flattening.quip"
+make flattening = @import "../semantics/flattening.quip"
 }
 
 @pub
@@ -37,6 +39,9 @@ make type Unit {
     make map: linemap::LineMap
     make tokens: lexer::Token[]
 
+    make path_abs: std::io::Path
+    make program: owned<qast::QAST_Head>[]
+
     make status: UnitStatus
 
     make lsp_mode: bool
@@ -48,6 +53,8 @@ make type Unit {
         make u = Unit {}
         u.diag = diags::Diagnostic.init()
         u.lsp_mode = false
+
+        // u.path_abs = path.absolute()
 
         make f = std::io::File.open(path) catch {
             std::io::println("File not found")
@@ -81,15 +88,15 @@ make type Unit {
         }
 
         make p = parser::Parser.init(this.tokens.pin)
-        make qast = p.proceed(this)
+        this.program = p.proceed(this)
         if this.diag.has_errors() {
             std::process::abort()
         }
 
         // not working
-        // flattening::run(qast)
+        // flattening::run(this.program)
 
-        parser::debug_display(qast)
+        parser::debug_display(this.program)
 
         return
     }

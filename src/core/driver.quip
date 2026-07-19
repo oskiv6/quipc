@@ -1,5 +1,5 @@
 @pure @const {
-make std = @import "stdlib.quip"
+make std = @import "../../library/std/pkg.quip"
 
 make um = @import "unit_manager.quip"
 make configuration = @import "config.quip"
@@ -58,6 +58,7 @@ make type Driver {
         make manager = um::UnitManager.init(this.config.input) catch err {
             return err
         }
+        // manager.set_packages(this.config.package_names, this.config.package_paths)
         this.manager = manager
 
         for unit : this.manager.units.iter() {
