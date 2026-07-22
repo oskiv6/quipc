@@ -82,6 +82,8 @@ make type Unit {
 
     @pub @this
     make proceed () -> !void {
+        // bootstrapping may not work correctly
+
         this.status = UnitStatus.Lexing
         this.tokens = lexer::tokenize(this.content) catch err {
             return err
@@ -93,11 +95,9 @@ make type Unit {
             std::process::abort()
         }
 
-        // not working
-        // flattening::run(this.program)
+        flattening::run(this.program)
 
         parser::debug_display(this.program)
-
         return
     }
 }

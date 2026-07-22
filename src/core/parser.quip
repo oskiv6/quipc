@@ -343,10 +343,26 @@ make type Parser {
         match this.parse_statements(ctx) {
             none {
                 node.*.head.status = qast::QAST_Status.Error
+                @unsafe return node
             }
 
             some: qast::QAST_Statements {
                 node.*.statements = some
+            }
+        }
+
+        if this.current().*.kind == lexer::TokenKind.KeyElif {
+            node.*.elif_block = this.parse_if(ctx)
+        } elif this.current().*.kind == lexer::TokenKind.KeyElse {
+            this.advance()
+
+            match this.parse_statements(ctx) {
+                none {
+                    node.*.head.status = qast::QAST_Status.Error
+                    @unsafe return node
+                }
+
+                some { node.*.else_block = some }
             }
         }
 
@@ -522,7 +538,6 @@ make type Parser {
 
         while this.current().*.kind != lexer::TokenKind.RParen {
 
-            std::io::println(this.current().*.lexeme)
 
             make param: qast::QAST_Param = qast::QAST_Param {}
             param.name = this.expect(lexer::TokenKind.Identifier) catch {}.*
@@ -1222,16 +1237,13 @@ make debug_display (p: owned<qast::QAST_Head>[]) -> void {
 }
 
 
-
 make _print_node (node: owned<qast::QAST_Head>, depth: int) -> void {
     @unsafe {
         match node.*.kind {
             qast::QAST_Kind.Tag {
                 make tag: owned<qast::QAST_Tag> = node
                 _print_indent(depth)
-                std::io::print("@")
                 _print_indent(depth)
-                std::io::println(tag.*.name.lexeme)
                 make tag_val = tag.*.val
 
                 match tag.*.val {

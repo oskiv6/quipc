@@ -8,6 +8,14 @@ make um = @import "../core/unit_manager.quip"
 make type Span {
     make start: uint
     make end: uint
+
+    @pub @this
+    make copy () -> Span {
+        make c = Span {}
+        c.start = this.start
+        c.end = this.end
+        return c
+    }
 }
 
 @pub
@@ -15,8 +23,17 @@ make type Range {
     make start: Span
     make end: Span
 
-    // not the best option to use ptr<>, but better than ref<ref<>>
+    // not the best option to use ptr<>, but better than ref<ref<>>, just do not free
     make unit: ptr<um::Unit>
+
+    @pub @this
+    make copy () -> Range {
+        make c = Range {}
+        c.start = this.start.copy()
+        c.end = this.end.copy()
+        c.unit = this.unit
+        return c
+    }
 }
 
 @pub

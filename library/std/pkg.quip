@@ -134,9 +134,8 @@ make type Build {
             return error.NoExecutables
         }
 
-
         @target "macos" {
-            make compiler_path: str = "/usr/local/bin/quipc"
+            make compiler_path: str = "quipc"
         }
 
         @target "linux" {
