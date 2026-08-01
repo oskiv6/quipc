@@ -48,7 +48,7 @@ Development is currently focused on stabilizing the C reference compiler's parsi
 
 Use `install.sh` to download and install Quip compiler for your machine
 ```sh
-curl -fsSL https://raw.githubusercontent.com/oskiv6/quipc/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/quiplang/quipc/main/install.sh | sh
 ```
 
 Currently supported platforms:
