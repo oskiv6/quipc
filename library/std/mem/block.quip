@@ -3,7 +3,7 @@ make type Block {
 
     make free: bool = true
     make size: int = 0
-    make next: ptr<Block> = none
+    make next: ptr<Block>? = none
     make is_prev_free: bool = false
 
     @pub @this
@@ -29,12 +29,16 @@ make type Block {
     @pub @this
     make join () {
         @unsafe {
-            while this.next != null {
-                if this.next.*.free {
-                    this.size = this.size + this.next.*.size + (@sizeof Block)
-                    this.next = this.next.*.next
-                } else {
-                    return
+            match this.next {
+                none {}
+
+                some {
+                    if some.*.free {
+                        this.size = this.size + some.*.size + (@sizeof Block)
+                        this.next = some.*.next
+                    } else {
+                        return
+                    }
                 }
             }
         }

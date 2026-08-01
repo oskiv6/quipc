@@ -1,0 +1,81 @@
+@pure @const {
+    make p: unit = @import "path.quip"
+    make os: unit = @import "../os/pkg.quip"
+}
+
+// ====
+
+@pure @const {
+    make Path: Type = p::Path
+}
+
+
+
+// ====
+
+@pub
+make type File {
+
+    @pub {
+        make path_abs: Path
+        make fd: int
+        make content: str
+    }
+
+    @pub
+    make open (path: Path) -> !File {
+        make file: File = .{}
+
+        file.fd = os::syscall::open(path.get())
+        // file.path_abs = path.absolute()
+
+        if file.fd < 0 {
+            return error.IOError
+        }
+
+        return file
+    }
+
+    @pub
+    make create (path: Path, mode: int) -> !File {
+        make file: File = .{}
+
+        file.fd = os::syscall::create(path.get(), mode)
+
+        if file.fd < 0 {
+            return error.IOError
+        }
+
+        return file
+    }
+
+    @pub @this
+    make read () -> !void {
+        if os::syscall::quip_file_read_fd(this.fd, this.content.pin) < 0 {
+            return error.FailedToRead
+        }
+    }
+
+    @pub @this
+    make write (data: str) -> !void {
+        if os::syscall::write(this.fd, data.data, data.len()) < 0 {
+            return error.FailedToWrite
+        }
+    }
+
+    @pub @this
+    make close () -> void {
+        os::syscall::close(this.fd)
+    }
+
+    @pub
+    make orc (path: Path) -> !str {
+        make file = File.open(path) catch err { return err }
+        file.read() catch err { return err }
+        make result: str = file.content
+        file.close()
+
+        return result
+    }
+
+}

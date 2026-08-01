@@ -22,6 +22,21 @@ make close(fd: int) -> int {
 }
 
 @pub
+make mkdir(path: str, mode: int) -> int {
+    return posix::mkdir(path, mode)
+}
+
+@pub
+make access(path: str, mode: int) -> int {
+    return posix::access(path, mode)
+}
+
+@pub
+make create(path: str, mode: int) -> int {
+    return posix::create(path, mode)
+}
+
+@pub
 make fstat(fd: int) -> int {
     return posix::fstat(fd !)
 }
@@ -69,12 +84,16 @@ make quip_page_size() -> int {
 }
 
 
-
+// temporary solution
 @pub @external make quip_map_anon(size: int) -> ptr<u8>
 
 @pub @external make quip_unmap(addr: ptr<u8>, size: int) -> int
 
 @pub @external make quip_file_read_fd(fd: int, content: ref<str>) -> int
+
+@pub @external make quip_getcwd(content: ref<str>) -> int
+
+@pub @external make quip_getenv(name: ptr<char>, content: ref<str>) -> int
 
 @pub @external make quip_spawn_process_qp(path: ref<str>, args: ref<str[]>, stdin_fd: int, stdout_fd: int, stderr_fd: int) -> int
 

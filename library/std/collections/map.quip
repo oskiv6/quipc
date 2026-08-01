@@ -1,0 +1,79 @@
+make type MapEntry <V> {
+    make key: str
+    make value: V
+}
+
+@pub
+make type Map <V> {
+
+    make entries: MapEntry<V>[]
+
+    @pub
+    make create () -> Map <V> {
+        return Map <V> {
+            entries = []
+        }
+    }
+
+    @pub @this
+    make push (key: str, value: V) {
+        match this.get_index(key.pin) {
+            none { // insert a value
+                this.entries.push(.{
+                    key = key,
+                    value = value
+                })
+            }
+
+            some { // update
+                this.entries[some].value = value
+            }
+        }
+    }
+
+    @pub @this
+    make remove (key: str) -> !V {
+        match this.get_index(key.pin) {
+            none { return error.NotFound }
+
+            some {
+                return this.entries.remove(some).value
+            }
+        }
+    }
+
+    // @pub @this
+    // make get (key: str) -> !ref<V> {
+    // }
+
+    @pub @this
+    make contains (key: str) -> bool {
+        match this.get_index(key.pin) {
+            none { return false }
+            some { return true }
+        }
+    }
+
+    @pub @this
+    make len () -> int {
+        return this.entries.len()
+    }
+
+    // @pub @this
+    // make clear () {
+    // }
+
+    @this
+    make get_index (key: ref<str>) -> int? {
+        make i: int = 0
+        while i < this.entries.len() {
+            if this.entries[i].key == key.* {
+                return i
+            }
+
+            i = i + 1
+        }
+
+        return none
+    }
+}

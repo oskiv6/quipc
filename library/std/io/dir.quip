@@ -1,0 +1,23 @@
+@pure @const {
+    make std: unit = @import "../pkg.quip"
+}
+
+@pub
+make type Dir {
+
+    @pub
+    make mkdir (path: ref<std::io::Path>, mode: int) -> !void {
+        // check if the directory already exists
+        if std::os::syscall::access(path.*.get(), 0) == 0 {
+            return
+        }
+
+        // if the directory does not exist, create it
+        if std::os::syscall::mkdir(path.*.get(), mode) < 0 {
+            return error.DirCreationFailed
+        }
+
+        return
+    }
+
+}

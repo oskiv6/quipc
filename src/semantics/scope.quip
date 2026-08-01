@@ -1,0 +1,27 @@
+@pure @const {
+make qast = @import "../util/qast.quip"
+make util = @import "../util/pkg.quip"
+
+make std = @import "../../library/std/pkg.quip"
+make hashmap = @import "../../library/std/collections/hashmap.quip"
+
+make um = @import "../core/unit_manager.quip"
+}
+
+
+@pub
+make type Scope {
+
+    make map: hashmap::HashMap<str, owned<qast::QAST_Head>>
+    make parent: ref<Scope>?
+
+    @pub
+    make create (parent: ref<Scope>?) -> Scope {
+        make scope = Scope {
+            map = hashmap::HashMap<str, owned<qast::QAST_Head>>.create(32),
+            parent = parent
+        }
+
+        return scope
+    }
+}

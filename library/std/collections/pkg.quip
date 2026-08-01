@@ -1,0 +1,57 @@
+@pure @const {
+    make hashmap: unit = @import "hashmap.quip"
+    make iterator: unit = @import "iterator.quip"
+    make map: unit = @import "map.quip"
+
+    make io: unit = @import "../io/pkg.quip"
+
+    make fmt: unit = @import "../fmt/pkg.quip"
+}
+
+@pub @const
+make Iterator<V>: Type = iterator::Iterator<V>
+
+@pub @const
+make HashMap<K, V>: Type = hashmap::HashMap<K, V>
+
+@pub @const
+make Map<V>: Type = map::Map<V>
+
+
+// ====
+
+@pub
+make split (buffer: variant<String, str, ptr<char>>, c: char) -> str[] {
+    make s: str = match buffer {
+
+        x: str => x
+        y: String => y.to_str()
+        z: ptr<char> => z.to_str()
+        _ {
+            io::println("unsupported format Type")
+        } => ""
+
+    }
+
+    make result: str[] = []
+    make current: str = ""
+    make i: int = 0
+
+    while i < s.len() {
+        if s[i] == c {
+            if current.len() > 0 {
+                result.push(current + "")
+                current = ""
+            }
+        } else {
+            current = current + s[i]
+        }
+        i = i + 1
+    }
+
+    if current.len() > 0 {
+        result.push(current + "")
+    }
+
+    return result
+}

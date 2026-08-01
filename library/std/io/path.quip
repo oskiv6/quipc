@@ -1,0 +1,156 @@
+@pure @const {
+    make os: unit = @import "../os/pkg.quip"
+
+    make collections: unit = @import "../collections/pkg.quip"
+
+    make math: unit = @import "../math/pkg.quip"
+}
+
+@pub
+make type Path {
+
+    make content: str[]
+    make is_absolute: bool
+
+    @target "macos" {
+        @const make delimeter: char = '/'
+    }
+
+    // @target "windows" {
+    //     @const make delimeter: char = '\\'
+    // }
+
+    @pub
+    make create (buffer: variant<String, str, ptr<char>>) -> Path {
+        make path = Path {}
+
+        match buffer {
+            a: String {
+                path.is_absolute = a.len() > 0 && a[0] == path.delimeter
+            }
+
+            b: str {
+                path.is_absolute = b.len() > 0 && b[0] == path.delimeter
+            }
+
+            c: ptr<char> {
+                make t = c.to_str()
+                path.is_absolute = t.len() > 0 && t[0] == path.delimeter
+            }
+        }
+
+        path.content = collections::split(buffer, path.delimeter)
+
+        // resolve '~' (home directory) so it is not passed to the system
+        if path.content.len() > 0 && path.content[0] == "~" {
+            make home_parts = collections::split(os::getenv("HOME"), path.delimeter)
+            make resolved: str[] = []
+
+            for p : home_parts.iter() {
+                resolved.push(p)
+            }
+
+            make i: int = 1
+            while i < path.content.len() {
+                resolved.push(path.content[i])
+                i = i + 1
+            }
+
+            path.content = resolved
+            path.is_absolute = true
+        }
+
+        return path
+    }
+
+    @pub @this
+    make get () -> str {
+        make path: str = ""
+        if this.is_absolute {
+            path = path + this.delimeter
+        }
+        make i: int = 0
+        while i < this.content.len() {
+            path = path + this.content[i]
+            if i < this.content.len() - 1 {
+                path = path + this.delimeter
+            }
+            i = i + 1
+        }
+
+        return path
+    }
+
+    @pub @this
+    make absolute () -> Path {
+        if this.is_absolute {
+            return Path {
+                content = this.content,
+                is_absolute = true,
+            }
+        }
+
+        make t = os::getcwd()
+        make cwd = Path.create(t)
+        make result = Path {}
+
+        for i : cwd.content.iter() {
+            result.content.push(i)
+        }
+
+        for j : this.content.iter() {
+            result.content.push(j)
+        }
+
+        return result
+    }
+
+
+    @pub @this
+    make copy () -> Path {
+        make new: Path = .{}
+
+        for i : this.content.iter() {
+            new.content.push(i !)
+        }
+
+        new.is_absolute = this.is_absolute
+
+        return new
+    }
+
+    @pub @this
+    make add (other: variant<str, Path, String>) -> Path {
+
+        make new = this.copy()
+
+        match other {
+
+            a: str {
+                new.content.push(a)
+            }
+
+            b: String {
+                new.content.push(b.to_str())
+            }
+
+            c: Path {
+                for i : c.content.iter() {
+                    new.content.push(i !)
+                }
+            }
+        }
+
+        return new
+    }
+}
+
+@impl String
+make to_path () -> Path {
+    return Path.create(this.*)
+}
+
+@impl str
+make to_path () -> Path {
+    return Path.create(this.*)
+}

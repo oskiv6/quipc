@@ -1,0 +1,10 @@
+@pure @const {
+    make std: unit = @import "std.quip"
+}
+
+@pub @entry
+make main () -> int {
+    std::io::println("Hello, World!")
+
+    return 0
+}

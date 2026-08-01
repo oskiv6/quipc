@@ -7,7 +7,7 @@ make type Person {
 
     if 10 {
 
-    }
+    } elif 10 {} else {}
 
     for a : arr {}
 

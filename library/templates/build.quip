@@ -1,0 +1,22 @@
+@pure @const {
+    make std: unit = @import "std.quip"
+}
+
+@pub @entry
+make build () -> int {
+    std::io::println("building project")
+
+    make b = std::Build.default()
+    b.options.hide_warnings = true
+
+    make exe = std::Executable.default()
+
+    b.executables.push(exe)
+
+    b.proceed() catch {
+        std::io::println("failed to build the project")
+        return 1
+    }
+
+    return 0
+}
