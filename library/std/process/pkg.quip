@@ -24,16 +24,15 @@ make type Command {
     make env: str[] = []
     make work_dir: str = none
 
-    make fd_in: int = none
-    make fd_out: int = none
-    make fd_err: int = none
+    make fd_in: int = io::STDIN
+    make fd_out: int = io::STDOUT
+    make fd_err: int = io::STDERR
 
     @pub
     make create (name: str, args: str[]) -> Command {
         make command: Command = Command {}
         command.name = name
         command.args = args
-
         return command
     }
 
@@ -46,7 +45,7 @@ make type Command {
         result = result + " "
 
 
-        for arg : this.args {
+        for arg : this.args.iter() {
             result.push(arg)
             result = result + " "
         }
@@ -76,7 +75,8 @@ make type Process {
     make spawn (command: Command) -> !Process {
         make pid: int = os::syscall::quip_spawn_process_qp(
             command.name.pin, command.args.pin,
-            command.fd_in, command.fd_out, command.fd_err)
+            command.fd_in, command.fd_out, command.fd_err
+        )
 
         if pid < 0 {
             return error.ProcessSpawnFailed

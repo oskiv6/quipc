@@ -1,0 +1,14 @@
+
+
+@pub
+make range (start: int, end: int, step: int) -> int[] {
+    make result: int[] = []
+    make i = start
+
+    while i < end {
+        result.push(i)
+        i = i + step
+    }
+
+    return result
+}

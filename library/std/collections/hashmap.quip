@@ -1,0 +1,296 @@
+@pure @const {
+make std: unit = @import "../pkg.quip"
+}
+
+make enum State {
+    Empty,
+    Occupied,
+    Deleted,
+}
+
+@pub
+make type Slot <K, V> {
+    make state: State
+    make hash: int
+    make key: K
+    make value: V
+}
+
+make next_power_of_two (n: uint) -> int {
+    make result: uint = 1
+    while result < n {
+        result = result << 1
+    }
+    return result
+}
+
+@pub
+make type HashMap <K, V> {
+
+    make slots: owned<Slot<K, V>>
+    make capacity: int
+    make count: int
+
+    @pub
+    make create (init_cap: uint) -> HashMap<K, V> {
+        make cap: int = next_power_of_two(init_cap)
+
+        make map: HashMap<K, V> = .{
+            slots = std::mem::debug.alloc((@sizeof Slot<K, V>) * cap).unwrap(),
+            capacity = cap,
+            count = 0
+        }
+
+        return map
+    }
+
+    @pub @this
+    make insert (key: K, value: V) -> !void {
+        if this.count + 1 >= this.capacity {
+            this.resize(next_power_of_two(this.capacity * 2))
+        }
+
+        make mask: int = this.capacity - 1
+        make h: int = key.hash()
+        make idx: int = h & mask
+
+        @unsafe {
+            for probe : std::math::range(0, this.capacity, 1) {
+                make slot: ptr<Slot<K, V>> = this.slots + ((idx + probe) % this.capacity)
+
+                match slot.*.state {
+                    .Empty {
+                        slot.*.state = State.Occupied
+                        slot.*.hash = h
+                        slot.*.key = key
+                        slot.*.value = value
+                        this.count = this.count + 1
+                        return
+                    }
+
+                    .Deleted {
+                        slot.*.state = State.Occupied
+                        slot.*.hash = h
+                        slot.*.key = key
+                        slot.*.value = value
+                        this.count = this.count + 1
+                        return
+                    }
+
+                    .Occupied {
+                        if slot.*.key == key {
+                            slot.*.value = value
+                            return
+                        }
+                    }
+                }
+            }
+        }
+        return error.HashMapFull
+    }
+
+    @pub @this
+    make iter () -> HashMapIterator<K, V> {
+        @unsafe return HashMapIterator<K, V> {
+            slots = this.slots,
+            capacity = this.capacity,
+            index  = 0
+        }
+    }
+
+    @pub @this
+    make remove (key: K) -> !V {
+        make mask: int = this.capacity - 1
+        make h: int = key.hash()
+        make idx: int = h & mask
+
+        @unsafe {
+            for probe : std::math::range(0, this.capacity, 1) {
+                make slot: ptr<Slot<K, V>> = this.slots + ((idx + probe) % this.capacity)
+
+                match slot.*.state {
+                    .Empty { return error.KeyNotFound }
+
+                    .Occupied {
+                        if slot.*.hash == h && slot.*.key == key {
+                            make value: V = slot.*.value
+                            slot.*.state = State.Deleted
+                            this.count = this.count - 1
+                            return value
+                        }
+                    }
+
+                    .Deleted {}
+                }
+            }
+        }
+
+        return error.KeyNotFound
+    }
+
+    @pub @this
+    make get (key: K) -> !V {
+        make mask: int = this.capacity - 1
+        make h: int = key.hash()
+        make idx: int = h & mask
+
+        @unsafe {
+            for probe : std::math::range(0, this.capacity, 1) {
+                make slot: ptr<Slot<K, V>> = this.slots + ((idx + probe) % this.capacity)
+
+                match slot.*.state {
+                    .Empty { return error.KeyNotFound }
+
+                    .Occupied {
+                        if slot.*.hash == h && slot.*.key == key {
+                            return slot.*.value
+                        }
+                    }
+
+                    .Deleted {}
+                }
+            }
+        }
+
+        return error.KeyNotFound
+    }
+
+    @this
+    make resize (new_cap: uint) -> void {
+        make new_slots: owned<Slot<K, V>> = std::mem::debug.alloc((@sizeof Slot<K, V>) * new_cap).unwrap()
+
+        for i : std::math::range(0, this.capacity, 1) {
+            @unsafe {
+                make slot: ptr<Slot<K, V>> = this.slots + i
+
+                if slot.*.state == .Occupied {
+                    make mask: int = new_cap - 1
+                    make idx: int = slot.*.hash & mask
+
+                    for probe : std::math::range(0, new_cap, 1) {
+                        make new_slot: ptr<Slot<K, V>> = new_slots + ((idx + probe) % new_cap)
+
+                        if new_slot.*.state != .Occupied {
+                            new_slot.* = slot.*
+                            break
+                        }
+                    }
+                }
+            }
+        }
+
+        std::mem::debug.free(this.slots)
+        this.slots = new_slots
+        this.capacity = new_cap
+    }
+}
+
+make type HashMapIterator <K, V> {
+    make slots: ptr<Slot<K, V>>
+    make capacity: int
+    make index: int
+
+    @pub @this
+    make next () -> V? {
+        @unsafe {
+            while this.index < this.capacity {
+                make slot: ptr<Slot<K, V>> = this.slots + this.index
+                this.index = this.index + 1
+                if slot.*.state == State.Occupied {
+                    return slot.*.value
+                }
+            }
+        }
+        return none
+    }
+}
+
+@impl str
+make hash () -> int {
+    make h: int = 0
+    for i : std::math::range(0, this.*.len(), 1) {
+        @unsafe make c: u8 = this.*[i]
+        h = (h << 5) - h + c
+    }
+    return h
+}
+
+@impl String
+make hash () -> int {
+    make h: int = 0
+    for i : std::math::range(0, this.*.len(), 1) {
+        @unsafe make c: u8 = this.*[i]
+        h = (h << 5) - h + c
+    }
+    return h
+}
+
+@impl int
+make hash () -> int {
+    @unsafe return this.*
+}
+
+@pub
+make test () -> !void {
+    make map: HashMap<String, int> = HashMap<String, int>.create(2)
+
+    map.insert("hello", 14) catch {
+        std::io::println("'hello' insertion failure")
+        return error.TestFailed
+    }
+
+    map.insert("world", 67) catch e {
+        match e {
+            error.OutOfBounds {
+                std::io::println("out of bounds")
+                return error.TestFailed
+            }
+        }
+
+        std::io::println("'world' insertion failure")
+        return error.TestFailed
+    }
+
+    if map.get("hello") != 14 {
+        std::io::println("couldn't get the value")
+        return error.TestFailed
+    }
+
+    if map.get("world") != 67 {
+        return error.TestFailed
+    }
+
+    map.insert("hello", 420) catch {
+        std::io::println("insertion failure")
+        return error.TestFailed
+    }
+
+    if map.get("hello") != 420 {
+        return error.TestFailed
+    }
+
+    // resize test
+    map.insert("resize", 8) catch {
+        std::io::println("insertion failure")
+        return error.TestFailed
+    }
+
+    if map.capacity != 4 {
+        std::io::println("HashMap resizing failed")
+        return error.TestFailed
+    }
+
+    if map.get("resize") != 8 {
+        return error.TestFailed
+    }
+
+    if map.get("hello") != 420 {
+        return error.TestFailed
+    }
+
+    if map.get("world") != 67 {
+        return error.TestFailed
+    }
+
+    return
+}

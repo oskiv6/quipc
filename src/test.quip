@@ -1,0 +1,23 @@
+@pure @const {
+make std = @import "../library/std/pkg.quip"
+}
+
+
+@pub
+make run_test () -> int {
+
+    test_library()
+
+
+    return 0
+}
+
+make test_library () {
+
+    std::test() catch {
+        std::io::println("Standard Library test failed")
+        return
+    }
+
+    std::io::println("Standard Library test passed")
+}

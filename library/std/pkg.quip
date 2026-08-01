@@ -4,8 +4,11 @@ make io: unit = @import "./io/pkg.quip"
 make os: unit = @import "./os/pkg.quip"
 make mem: unit = @import "./mem/pkg.quip"
 make process: unit = @import "./process/pkg.quip"
+make collections: unit = @import "./collections/pkg.quip"
+make math: unit = @import "./math/pkg.quip"
 
 }
+
 
 // BUILD
 
@@ -14,14 +17,17 @@ make type Options {
 
     make show_quipc_debug: bool
     make show_memory_dump: bool
-    make show_warnings: bool
+    make hide_warnings: bool
+
+    make cache: bool
 
     @pub
     make default () -> Options {
         return Options {
             show_quipc_debug = false,
             show_memory_dump = false,
-            show_warnings = true,
+            hide_warnings = false,
+            cache = true,  // doesn't work now
         }
     }
 }
@@ -49,7 +55,7 @@ make enum Optimization {
     Memory,
 }
 
-@pub @copy
+@pub
 make type Package {
     make name: str
     make version: str
@@ -71,12 +77,18 @@ make type Executable {
     make path_build: io::Path
     make platform: Platform
     make optimization: Optimization
-    make packages: Package[]?
+
+    make entry_file: io::Path
+    make entry_point: str
+
+    make args: str[]
 
     @pub
     make default () -> Executable {
         return Executable {
             name = "out",
+            entry_file = io::Path.create("src/main.quip"),
+            entry_point = "main",
             path_build = io::Path.create("debug/"),
             platform = Platform.Native,
             optimization = Optimization.None,
@@ -84,16 +96,27 @@ make type Executable {
     }
 
     @pub @this
-    make add_package (pkg: Package) -> void {
-        match this.packages {
-            none {
-                make arr: Package[] = []
-                arr.push(pkg)
-                this.packages = arr
-            }
-
-            some: Package[] { some.push(pkg) }
+    make construct_args () {
+        match this.optimization {
+            Optimization.Standard { this.args.push("-O2") }
+            Optimization.Aggressive { this.args.push("-O3") }
+            // Optimization.Size { this.args.push("-Os") }
+            // Optimization.Memory { this.args.push("-Oz") }
+            _ {}
         }
+
+        // -o path/to/executable
+        this.args.push("-o")
+        this.args.push(this.path_build.get() + io::Path.delimeter + this.name)
+
+        // this.args.push("--entry-point=")
+        // this.args.push(""" + this.entry_point + """)
+
+        this.args.push("--entry")
+        this.args.push(this.entry_point)
+
+        this.args.push("compile")
+        this.args.push(this.entry_file.get())
     }
 
     @pub
@@ -102,11 +125,10 @@ make type Executable {
     }
 }
 
+
+
 @pub
 make type Build {
-
-    make entry_file: io::Path
-    make entry_point: str
 
     make options: Options
     make mode: Mode
@@ -115,11 +137,11 @@ make type Build {
 
     make executables: Executable[]
 
+    make packages: Package[]?
+
     @pub
     make default () -> Build {
         return Build {
-            entry_file = io::Path.create("src/main.quip"),
-            entry_point = "main",
             options = Options.default(),
             mode = Mode.Debug,
         }
@@ -139,7 +161,7 @@ make type Build {
         }
 
         @target "linux" {
-            make compiler_path: str = "/usr/bin/quipc"
+            make compiler_path: str = "quipc"
         }
 
         @target "windows" {
@@ -148,28 +170,52 @@ make type Build {
 
         @weak {}
 
+        this.construct_args()
+
         for exe : this.executables.iter() {
 
-            this.construct_args(exe)
+            exe.construct_args()
 
-            make command = process::Command.create(compiler_path, this.args)
-            make t: str = command.get()
-            io::println(t)
+            make args: str[] = []
+            for a : this.args {
+                args.push(a)
+            }
 
-            result.push(process::Process.run(command))
+            for a: exe.args {
+                args.push(a)
+            }
+
+            make command = process::Command.create(compiler_path !, args)
+            io::println(command.get())
+
+            make code = process::Process.run(command)
+            if code != 0 {
+                return error.FailedToBuild
+            }
+            result.push(code)
         }
 
         return result
     }
 
     @pub @this
-    make construct_args (exe: Executable) {
+    make add_package (pkg: Package) -> void {
+        match this.packages {
+            none {
+                make arr: Package[] = []
+                arr.push(pkg)
+                this.packages = arr
+            }
 
-        // make args = this.args
+            some: Package[] { some.push(pkg) }
+        }
+    }
 
-        match exe.packages {
+    @pub @this
+    make construct_args () {
+        match this.packages {
             none {}
-            some: Package[] {
+            some {
                 for pkg : some.iter() {
                     this.args.push("--package")
                     this.args.push(pkg.name)
@@ -178,28 +224,14 @@ make type Build {
             }
         }
 
-        match exe.optimization {
-            Optimization.Standard { this.args.push("-O2") }
-            Optimization.Aggressive { this.args.push("-O3") }
-            // Optimization.Size { this.args.push("-Os") }
-            // Optimization.Memory { this.args.push("-Oz") }
-            _ {}
-        }
-
         match this.mode {
             Mode.Debug { this.args.push("-g") }
             _ {}
         }
 
-        // -o path/to/executable
-        this.args.push("-o")
-        this.args.push(exe.path_build.get() + io::Path.delimeter + exe.name)
-
-        // this.args.push("--entry-point=")
-        // this.args.push(""" + this.entry_point + """)
-
-        this.args.push("compile")
-        this.args.push(this.entry_file.get())
+        if this.options.hide_warnings {
+            this.args.push("--hide-warnings")
+        }
     }
 
     @pub @this
@@ -211,8 +243,6 @@ make type Build {
     make checkout () { // show the current Build status in the terminal
         io::println("==== BUILD ====")
 
-        io::println(this.entry_file.get())
-        io::println(this.entry_point)
         // io::println(options.get())
         // io::println(mode.get())
         io::println("")
@@ -220,6 +250,8 @@ make type Build {
         for exe : this.executables.iter() {
             io::println("----")
             io::println(exe.name)
+            io::println(exe.entry_file.get())
+            io::println(exe.entry_point)
             io::println(exe.path_build.get())
             // io::println(exe.platform.get())
             // io::println(exe.optimization.get())
@@ -255,4 +287,36 @@ make is_digit () -> bool {
     make c = this.deref
 
     return c >= '0' && c <= '9'
+}
+
+@pub
+make todo (fmt: variant<str, String>, line: int, file: String) {
+
+    match fmt {
+        a: str {
+            // io::println("todo: " + a)
+            // io::println(file.to_str() + ":" + line.to_str() + " todo: " + a)
+        }
+
+        b: String {
+            //io::println("todo: " + b.to_str())
+            // io::println(file.to_str() + ":" + line.to_str() + " todo: " + b.to_str)
+        }
+    }
+
+    process::abort()
+}
+
+// TESTS
+
+@pub
+make test () -> !void {
+
+    io::test() catch {
+        io::println("io package test failed")
+        return error.TestFailed
+    }
+
+
+    return
 }

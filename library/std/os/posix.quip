@@ -38,6 +38,36 @@ make close(fd: int) -> int {
     }
 }
 
+@pub
+make mkdir(path: str, mode: int) -> int {
+    @target "linux" {
+        return __syscall(83, path.data, mode)
+    }
+    @target "macos" {
+        return __syscall(136, path.data, mode)
+    }
+}
+
+@pub
+make access(path: str, mode: int) -> int {
+    @target "linux" {
+        return __syscall(21, path.data, mode)
+    }
+    @target "macos" {
+        return __syscall(33, path.data, mode)
+    }
+}
+
+@pub
+make create(path: str, mode: int) -> int {
+    @target "linux" {
+        return __syscall(2, path.data, 577, mode)
+    }
+    @target "macos" {
+        return __syscall(5, path.data, 1537, mode)
+    }
+}
+
 @external make quip_sys_fstat(fd: int) -> int
 
 @pub
