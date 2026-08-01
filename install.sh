@@ -43,7 +43,7 @@ esac
 echo "    OS: $OS, Arch: $ARCH"
 
 step 2 "Checking latest release"
-LATEST_VERSION=$(curl -s https://api.github.com/repos/oskiv6/quipc/releases/latest | grep '"tag_name":' | sed 's/.*"tag_name": "//' | sed 's/".*//')
+LATEST_VERSION=$(curl -s https://api.github.com/repos/quiplang/quipc/releases/latest | grep '"tag_name":' | sed 's/.*"tag_name": "//' | sed 's/".*//')
 LATEST_VERSION=$(echo "$LATEST_VERSION" | sed 's/^v//')  # strip leading v
 LATEST_BARE=$(echo "$LATEST_VERSION" | sed 's/[-+].*//')  # strip pre-release suffix
 echo "    Latest: v$LATEST_VERSION"
@@ -65,7 +65,7 @@ fi
 mkdir -p "$BIN_DIR" "$LIB_DIR" "$DOWNLOAD_DIR"
 
 step 3 "Downloading compiler"
-DOWNLOAD_URL="https://github.com/oskiv6/quipc/releases/latest/download/quipc-${OS}-${ARCH}.tar.gz"
+DOWNLOAD_URL="https://github.com/quiplang/quipc/releases/latest/download/quipc-${OS}-${ARCH}.tar.gz"
 QUIPC_TAR="quipc.tar.gz"
 curl -L --progress-bar "$DOWNLOAD_URL" -o "$DOWNLOAD_DIR/$QUIPC_TAR"
 
@@ -90,12 +90,14 @@ rm "$BIN_DIR/libq.c"
 echo "    libq.o -> $LIB_DIR/libq.o"
 
 step 6 "Installing standard library"
-STD_URL="https://github.com/oskiv6/quipc/archive/refs/heads/main.tar.gz"
+STD_URL="https://github.com/quiplang/quipc/archive/refs/heads/main.tar.gz"
 STD_TAR="quipc-main.tar.gz"
 curl -L --progress-bar "$STD_URL" -o "$DOWNLOAD_DIR/$STD_TAR"
 tar -xzf "$DOWNLOAD_DIR/$STD_TAR" -C "$LIB_DIR" --strip-components=2 "quipc-main/library/std/"
+tar -xzf "$DOWNLOAD_DIR/$STD_TAR" -C "$LIB_DIR" --strip-components=2 "quipc-main/library/templates/"
 rm "$DOWNLOAD_DIR/$STD_TAR"
 echo "    -> $LIB_DIR/std"
+echo "    -> $LIB_DIR/templates"
 
 step 7 "Configuring shell"
 PROFILE=""
@@ -124,3 +126,4 @@ echo "  Version:   v$LATEST_VERSION"
 echo "  Compiler:  $BIN_DIR/quipc"
 echo "  Runtime:   $LIB_DIR/libq.o"
 echo "  Std lib:   $LIB_DIR/std"
+echo "  Templates: $LIB_DIR/templates"
